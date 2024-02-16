@@ -1,9 +1,9 @@
 # cloudflare-ddns-thing
 
-Are you sick of all the cloudflare ddns tools? Are they difficult to configure? Are they not working well?
+Had enough of wrangling with those Cloudflare DDNS tools? Finding them a tad fiddly to set up? And when they do decide to cooperate, is it still a bit hit-or-miss?
 
-Let me introduce to you, 'cloudflare-ddns-thing'. 
+Allow me to introduce you to "Cloudflare-DDNS-Thing."
 
-'cloudflare-ddns-thing' is  as bad as any other cloudflare ddns tool, if not worse. It will probably do some api calls, sometimes it will time out, sometimes it won't work and you won't even know why. I don't know either. 
+"Cloudflare-DDNS-Thing" is as unreliable as any other Cloudflare DDNS tool, if not worse. You might see it making API calls here and there, experiencing the odd timeout, and failing without so much as a hint as to why. Frankly, I'm as puzzled as you are.
 
-Anyway, enjoy!
+Anyway, give it a whirl and see how it goes!
