@@ -10,3 +10,6 @@ calls here and there, experiencing the odd timeout, and failing without so much 
 puzzled as you are.
 
 Anyway, give it a whirl and see how it goes!
+
+
+check freedns api
