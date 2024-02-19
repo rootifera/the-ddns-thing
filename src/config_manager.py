@@ -26,7 +26,8 @@ def check_and_create_config_files():
                                "# Format:\n"
                                "#\n"
                                "# [app.domain.com]\n"
-                               "# proxied=false\n")
+                               "# proxied=false\n"
+                               "# id=Leave it blank")
     ensure_config_file_exists(DOMAINS_CFG_FILE, default_domains_content)
 
     default_credentials_content = ("# Add your credentials here. Format: \n"
@@ -50,4 +51,36 @@ def get_domains_config():
 
 
 def get_credentials_config():
-    return read_config_file(CREDENTIALS_CFG_FILE)
+    config = configparser.ConfigParser()
+    config.read(CREDENTIALS_CFG_FILE)
+    return config['credentials']
+
+
+def get_domains_without_id():
+    config = read_config_file(DOMAINS_CFG_FILE)
+    domains_without_id = []
+
+    for section in config.sections():
+        if not config[section].get('id'):
+            domains_without_id.append({
+                'name': section,
+                'proxied': config[section].getboolean('proxied', False)
+            })
+
+    return domains_without_id
+
+
+def update_domain_ids(dns_records):
+    """This function gets the domain IDs, so we can query them directly next time"""
+    config = read_config_file(DOMAINS_CFG_FILE)
+    updated = False
+
+    for record in dns_records.get('result', []):
+        domain_name = record.get('name')
+        if domain_name and config.has_section(domain_name) and 'id' in record:
+            config.set(domain_name, 'id', record['id'])
+            updated = True
+
+    if updated:
+        with open(DOMAINS_CFG_FILE, 'w') as configfile:
+            config.write(configfile)
