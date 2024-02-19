@@ -32,8 +32,10 @@ def check_and_create_config_files():
     default_credentials_content = ("# Add your credentials here. Format: \n"
                                    "# api_key=YOUR_API_KEY\n"
                                    "# zone_id=YOUR_ZONE_ID\n"
+                                   "# email=YOUR_CLOUDFLARE_EMAIL\n"
                                    "api_key=\n"
-                                   "zone_id=\n")
+                                   "zone_id=\n"
+                                   "email=\n")
     ensure_config_file_exists(CREDENTIALS_CFG_FILE, default_credentials_content)
 
 
