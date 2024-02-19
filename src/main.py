@@ -4,6 +4,14 @@ import ip_fetcher as ip
 
 
 def main():
+    try:
+        config_manager.check_and_create_config_files()
+        config_manager.validate_credentials()
+        config_manager.validate_domain_entries()
+    except ValueError as e:
+        print(e)
+        return
+
     credentials = config_manager.get_credentials_config()
     public_ip = ip.get_public_ip()
 
@@ -12,8 +20,13 @@ def main():
     email = credentials.get('email')
 
     try:
-        dns_records = api_ops.list_dns_records(api_key, zone_id, email)
-        config_manager.update_domain_ids(dns_records['result'])
+        dns_records_response = api_ops.list_dns_records(api_key, zone_id, email)
+        if isinstance(dns_records_response, dict) and 'result' in dns_records_response:
+            dns_records = dns_records_response['result']
+            config_manager.update_domain_ids(dns_records)
+        else:
+            print("Error: Unexpected format in DNS records response")
+            return
     except Exception as e:
         print(f"Error fetching DNS records: {e}")
         return

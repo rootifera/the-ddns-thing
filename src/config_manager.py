@@ -1,5 +1,5 @@
-import os
 import configparser
+import os
 
 CONFIG_DIR = "config"
 DOMAINS_CFG_FILE = os.path.join(CONFIG_DIR, "domains.cfg")
@@ -34,6 +34,7 @@ def check_and_create_config_files():
                                    "# api_key=YOUR_API_KEY\n"
                                    "# zone_id=YOUR_ZONE_ID\n"
                                    "# email=YOUR_CLOUDFLARE_EMAIL\n"
+                                   "[credentials]\n"
                                    "api_key=\n"
                                    "zone_id=\n"
                                    "email=\n")
@@ -71,11 +72,17 @@ def get_domains_without_id():
 
 
 def update_domain_ids(dns_records):
-    """This function gets the domain IDs, so we can query them directly next time"""
+    # Assuming dns_records is a list of dictionaries
+    if not isinstance(dns_records, list):
+        raise ValueError("Expected a list of DNS records")
+
     config = read_config_file(DOMAINS_CFG_FILE)
     updated = False
 
-    for record in dns_records.get('result', []):
+    for record in dns_records:
+        # Ensure each record is a dictionary
+        if not isinstance(record, dict):
+            continue
         domain_name = record.get('name')
         if domain_name and config.has_section(domain_name) and 'id' in record:
             config.set(domain_name, 'id', record['id'])
@@ -84,3 +91,16 @@ def update_domain_ids(dns_records):
     if updated:
         with open(DOMAINS_CFG_FILE, 'w') as configfile:
             config.write(configfile)
+
+
+
+def validate_credentials():
+    credentials = get_credentials_config()
+    if not all(credentials.get(key) for key in ['api_key', 'zone_id', 'email']):
+        raise ValueError('Missing credentials. Please check your credentials.cfg file.')
+
+
+def validate_domain_entries():
+    domains_config = get_domains_config()
+    if not domains_config.sections():
+        raise ValueError('No records found to update. Please add at least one domain in domains.cfg.')
