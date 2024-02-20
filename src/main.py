@@ -8,7 +8,10 @@ from utils import print_red, print_green, print_orange, print_blue
 
 def main():
     try:
-        config_manager.check_and_create_config_files()
+        is_first_run = config_manager.check_and_create_config_files()
+        if is_first_run:
+            print_red("First run. Please see README")
+            return
         credentials = config_manager.get_credentials_config()
 
         api_key = credentials.get('api_key')

@@ -17,19 +17,22 @@ def ensure_config_file_exists(file_path, default_contents):
     if not os.path.isfile(file_path):
         with open(file_path, 'w') as file:
             file.write(default_contents)
+        return True
+    return False
 
 
 def check_and_create_config_files():
     ensure_config_dir_exists()
+    is_first_run = False
 
-    # Formatting notes
     default_domains_content = ("# Add your domains here\n"
                                "# Format:\n"
                                "#\n"
                                "# [app.domain.com]\n"
                                "# proxied=false\n"
                                "# id=Leave it blank")
-    ensure_config_file_exists(DOMAINS_CFG_FILE, default_domains_content)
+    if ensure_config_file_exists(DOMAINS_CFG_FILE, default_domains_content):
+        is_first_run = True
 
     default_credentials_content = ("# Add your credentials here. Format: \n"
                                    "# api_key=YOUR_API_KEY\n"
@@ -39,7 +42,11 @@ def check_and_create_config_files():
                                    "api_key=\n"
                                    "zone_id=\n"
                                    "email=\n")
-    ensure_config_file_exists(CREDENTIALS_CFG_FILE, default_credentials_content)
+    if ensure_config_file_exists(CREDENTIALS_CFG_FILE, default_credentials_content):
+        is_first_run = True
+
+    return is_first_run
+
 
 
 def read_config_file(file_path):
