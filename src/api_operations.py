@@ -72,3 +72,17 @@ def update_record_by_id(api_key, zone_id, email, record_id, new_ip, proxied):
         return response.json()
     else:
         response.raise_for_status()
+
+
+def verify_api_key(api_key):
+    url = "https://api.cloudflare.com/client/v4/user/tokens/verify"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json().get('success', False)
+    else:
+        return False
