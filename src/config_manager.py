@@ -44,7 +44,11 @@ def check_and_create_config_files():
 
 def read_config_file(file_path):
     config = configparser.ConfigParser()
-    config.read(file_path)
+    try:
+        config.read(file_path)
+    except configparser.DuplicateSectionError as e:
+        # print_cyan(f"Error: Duplicate section in configuration file '{file_path}': {e}")
+        raise
     return config
 
 

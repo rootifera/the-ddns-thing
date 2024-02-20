@@ -1,3 +1,8 @@
+"""
+This is just for colouring. I could use termcolor, I know
+"""
+
+
 def print_cyan(text):
     print(f"\033[96m{text}\033[0m")  # Cyan
 
