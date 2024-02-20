@@ -1,5 +1,6 @@
 import configparser
 import os
+from utils import print_cyan
 
 CONFIG_DIR = "config"
 DOMAINS_CFG_FILE = os.path.join(CONFIG_DIR, "domains.cfg")
@@ -12,7 +13,7 @@ def ensure_config_dir_exists():
 
 
 def ensure_config_file_exists(file_path, default_contents):
-    print(f"Checking file: {file_path}")
+    print_cyan(f"Checking file: {file_path}")
     if not os.path.isfile(file_path):
         with open(file_path, 'w') as file:
             file.write(default_contents)
@@ -91,7 +92,6 @@ def update_domain_ids(dns_records):
     if updated:
         with open(DOMAINS_CFG_FILE, 'w') as configfile:
             config.write(configfile)
-
 
 
 def validate_credentials():
