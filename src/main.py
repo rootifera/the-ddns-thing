@@ -38,7 +38,7 @@ def main():
             print_red("Error: Unexpected format in DNS records response")
             return
     except Exception as e:
-        print_red(f"Error fetching DNS records (most likely Zone ID is incorrect): {e}")
+        print_red(f"Error fetching DNS records: {e}")
         return
 
     domains_config = config_manager.get_domains_config()
