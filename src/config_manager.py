@@ -3,7 +3,7 @@ import os
 from . import utils
 
 CONFIG_DIR = "config"
-DOMAINS_CFG_FILE = os.path.join(CONFIG_DIR, "domains.cfg")
+DOMAINS_CFG_FILE = os.path.join(CONFIG_DIR, "dns_records.cfg")
 CREDENTIALS_CFG_FILE = os.path.join(CONFIG_DIR, "credentials.cfg")
 
 
@@ -25,7 +25,7 @@ def check_and_create_config_files():
     ensure_config_dir_exists()
     is_first_run = False
 
-    default_domains_content = ("# Add your domains here\n"
+    default_domains_content = ("# Add your dns records here\n"
                                "# Format:\n"
                                "#\n"
                                "# [app.domain.com]\n"
@@ -113,4 +113,4 @@ def validate_credentials():
 def validate_domain_entries():
     domains_config = get_domains_config()
     if not domains_config.sections():
-        raise ValueError('No records found to update. Please add at least one domain in domains.cfg.')
+        raise ValueError('No records found to update. Please add at least one domain in dns_records.cfg.')
