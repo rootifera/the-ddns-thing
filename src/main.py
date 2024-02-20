@@ -1,7 +1,9 @@
+from configparser import DuplicateSectionError
+
 import api_operations as api_ops
 import config_manager as config_manager
 import ip_fetcher as ip
-from utils import print_red, print_blue, print_green, print_orange
+from utils import print_red, print_green, print_orange, print_blue
 
 
 def main():
@@ -17,7 +19,10 @@ def main():
         config_manager.validate_credentials()
         config_manager.validate_domain_entries()
     except ValueError as e:
-        print(e)
+        print_red(e)
+        return
+    except DuplicateSectionError as e:
+        print_red(f"Configuration Error: {e}")
         return
 
     public_ip = ip.get_public_ip()
@@ -40,10 +45,7 @@ def main():
 
     for domain in domains_config.sections():
         domain_details = domains_config[domain]
-        # print_orange(f"Debug: Checking domain {domain}, ID: {domain_details.get('id')}")
-
         if not domain_details.get('id'):
-            # print_orange(f"Debug: No ID found for {domain}, attempting to create record.")
             proxied = domain_details.get('proxied', 'false').lower() == 'true'
             try:
                 api_ops.create_dns_record(api_key, zone_id, email, domain, public_ip, proxied)
