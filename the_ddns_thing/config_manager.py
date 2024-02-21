@@ -115,5 +115,3 @@ def validate_domain_entries():
     domains_config = get_domains_config()
     if not domains_config.sections():
         raise ValueError('No records found to update. Please add at least one domain in dns_records.cfg.')
-
-
