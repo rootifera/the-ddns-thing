@@ -28,8 +28,8 @@ def create_dns_record(api_key, zone_id, email, name, ip_address, proxied):
         "name": name,
         "content": ip_address,
         "proxied": proxied,
-        "ttl": 600,  # Change if you need
-        "comment": "Created by the-ddns-thing"  # Change that too
+        "ttl": 600,
+        "comment": "Created by the-ddns-thing"
     }
 
     response = requests.post(url, headers=headers, json=data)
