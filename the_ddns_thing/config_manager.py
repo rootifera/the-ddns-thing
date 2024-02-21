@@ -1,5 +1,6 @@
 import configparser
 import os
+
 from . import utils
 
 CONFIG_DIR = "config"
@@ -39,9 +40,9 @@ def check_and_create_config_files():
                                    "# zone_id=YOUR_ZONE_ID\n"
                                    "# email=YOUR_CLOUDFLARE_EMAIL\n"
                                    "[credentials]\n"
-                                   "api_key=\n"
-                                   "zone_id=\n"
-                                   "email=\n")
+                                   "api_key =\n"
+                                   "zone_id =\n"
+                                   "email =\n")
     if ensure_config_file_exists(CREDENTIALS_CFG_FILE, default_credentials_content):
         is_first_run = True
 
