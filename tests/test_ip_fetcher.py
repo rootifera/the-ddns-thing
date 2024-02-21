@@ -12,16 +12,14 @@ def mock_get_request(mocker):
 
 
 def test_get_public_ip_from_url_success(mock_get_request):
-    # Mocking a successful IP response
     mock_get_request.return_value.status_code = 200
-    mock_get_request.return_value.text = "192.0.2.1"
+    mock_get_request.return_value.text = "1.2.3.4"
 
     ip = ip_fetcher.get_public_ip_from_url("http://dummyurl.com")
-    assert ip == "192.0.2.1"
+    assert ip == "1.2.3.4"
 
 
 def test_get_public_ip_from_url_failure(mock_get_request):
-    # Mocking a failure in response
     mock_get_request.side_effect = requests.RequestException
 
     ip = ip_fetcher.get_public_ip_from_url("http://dummyurl.com")
@@ -35,15 +33,13 @@ def mock_get_public_ip_from_url(mocker):
 
 
 def test_get_public_ip(mock_get_public_ip_from_url):
-    # Mocking the first URL failing and second URL succeeding
-    mock_get_public_ip_from_url.side_effect = [None, "192.0.2.1", None]
+    mock_get_public_ip_from_url.side_effect = [None, "1.2.3.4", None]
 
     ip = ip_fetcher.get_public_ip()
-    assert ip == "192.0.2.1"
+    assert ip == "1.2.3.4"
 
 
 def test_get_public_ip_all_fail(mock_get_public_ip_from_url):
-    # Mocking failure for all URLs
     mock_get_public_ip_from_url.return_value = None
 
     with pytest.raises(Exception) as excinfo:
