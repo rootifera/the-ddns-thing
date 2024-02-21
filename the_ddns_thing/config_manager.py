@@ -4,7 +4,7 @@ import os
 from . import utils
 
 CONFIG_DIR = "config"
-DOMAINS_CFG_FILE = os.path.join(CONFIG_DIR, "dns_records.cfg")
+DNS_RECORDS_CFG_FILE = os.path.join(CONFIG_DIR, "dns_records.cfg")
 CREDENTIALS_CFG_FILE = os.path.join(CONFIG_DIR, "credentials.cfg")
 
 
@@ -32,7 +32,7 @@ def check_and_create_config_files():
                                "# [app.domain.com]\n"
                                "# proxied=false\n"
                                "# id=Leave it blank")
-    if ensure_config_file_exists(DOMAINS_CFG_FILE, default_domains_content):
+    if ensure_config_file_exists(DNS_RECORDS_CFG_FILE, default_domains_content):
         is_first_run = True
 
     default_credentials_content = ("# Add your credentials here. Format: \n"
@@ -60,7 +60,7 @@ def read_config_file(file_path):
 
 
 def get_domains_config():
-    return read_config_file(DOMAINS_CFG_FILE)
+    return read_config_file(DNS_RECORDS_CFG_FILE)
 
 
 def get_credentials_config():
@@ -70,7 +70,7 @@ def get_credentials_config():
 
 
 def get_domains_without_id():
-    config = read_config_file(DOMAINS_CFG_FILE)
+    config = read_config_file(DNS_RECORDS_CFG_FILE)
     domains_without_id = []
 
     for section in config.sections():
@@ -88,7 +88,7 @@ def update_domain_ids(dns_records):
     if not isinstance(dns_records, list):
         raise ValueError("Expected a list of DNS records")
 
-    config = read_config_file(DOMAINS_CFG_FILE)
+    config = read_config_file(DNS_RECORDS_CFG_FILE)
     updated = False
 
     for record in dns_records:
@@ -101,7 +101,7 @@ def update_domain_ids(dns_records):
             updated = True
 
     if updated:
-        with open(DOMAINS_CFG_FILE, 'w') as configfile:
+        with open(DNS_RECORDS_CFG_FILE, 'w') as configfile:
             config.write(configfile)
 
 
@@ -115,3 +115,5 @@ def validate_domain_entries():
     domains_config = get_domains_config()
     if not domains_config.sections():
         raise ValueError('No records found to update. Please add at least one domain in dns_records.cfg.')
+
+
