@@ -84,7 +84,6 @@ def get_domains_without_id():
 
 
 def update_domain_ids(dns_records):
-    # Assuming dns_records is a list of dictionaries
     if not isinstance(dns_records, list):
         raise ValueError("Expected a list of DNS records")
 
@@ -92,7 +91,6 @@ def update_domain_ids(dns_records):
     updated = False
 
     for record in dns_records:
-        # Ensure each record is a dictionary
         if not isinstance(record, dict):
             continue
         domain_name = record.get('name')
