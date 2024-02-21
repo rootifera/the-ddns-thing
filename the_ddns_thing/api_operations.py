@@ -29,7 +29,7 @@ def create_dns_record(api_key, zone_id, email, name, ip_address, proxied):
         "content": ip_address,
         "proxied": proxied,
         "ttl": 600,  # Change if you need
-        "comment": "Created by cloudflare-ddns-thing"  # Change that too
+        "comment": "Created by the-ddns-thing"  # Change that too
     }
 
     response = requests.post(url, headers=headers, json=data)
