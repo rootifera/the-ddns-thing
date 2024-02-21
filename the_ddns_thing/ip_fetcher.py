@@ -1,5 +1,6 @@
-import requests
 import re
+
+import requests
 
 
 def get_public_ip_from_url(url):
