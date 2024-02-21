@@ -3,7 +3,7 @@ import os
 
 from . import utils
 
-CONFIG_DIR = "config"
+CONFIG_DIR = os.path.expanduser("~/.config/the-ddns-thing")
 DNS_RECORDS_CFG_FILE = os.path.join(CONFIG_DIR, "dns_records.cfg")
 CREDENTIALS_CFG_FILE = os.path.join(CONFIG_DIR, "credentials.cfg")
 
