@@ -1,5 +1,7 @@
 import configparser
 
+import pytest
+
 from the_ddns_thing import config_manager
 
 
@@ -158,9 +160,6 @@ def test_update_domain_ids(tmp_path, monkeypatch):
     assert updated_config['example.com']['id'] == '12345'
     assert 'nonexistent.com' not in updated_config
     assert updated_config['anotherexample.com']['id'] == '54321'
-
-
-import pytest
 
 
 def test_validate_credentials_missing_values(tmp_path, monkeypatch):
