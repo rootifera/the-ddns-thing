@@ -40,21 +40,19 @@ def test_check_and_create_config_files(tmp_path, monkeypatch):
     assert is_first_run is True
     assert dns_records_cfg.exists()
     assert credentials_cfg.exists()
-    assert dns_records_cfg.read_text() == (
-        "# Add your dns records here\n"
-        "# Format:\n"
-        "#\n"
-        "# [app.domain.com]\n"
-        "# proxied=false\n"
-        "# id=Leave it blank"
-    )
+    assert dns_records_cfg.read_text() == ("# Add your dns records here\n"
+                                           "# Format:\n"
+                                           "#\n"
+                                           "# [app.domain.com]\n"
+                                           "# proxied=false (optional)\n"
+                                           "# id= Will be auto-filled. Do not edit")
     assert credentials_cfg.read_text() == (
         "# Add your credentials here. Format: \n"
-        "# api_key=YOUR_API_KEY\n"
+        "# api_token=YOUR_API_TOKEN\n"
         "# zone_id=YOUR_ZONE_ID\n"
         "# email=YOUR_CLOUDFLARE_EMAIL\n"
         "[credentials]\n"
-        "api_key =\n"
+        "api_token =\n"
         "zone_id =\n"
         "email =\n"
     )

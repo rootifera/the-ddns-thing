@@ -30,17 +30,17 @@ def check_and_create_config_files():
                                "# Format:\n"
                                "#\n"
                                "# [app.domain.com]\n"
-                               "# proxied=false\n"
-                               "# id=Leave it blank")
+                               "# proxied=false (optional)\n"
+                               "# id= Will be auto-filled. Do not edit")
     if ensure_config_file_exists(DNS_RECORDS_CFG_FILE, default_domains_content):
         is_first_run = True
 
     default_credentials_content = ("# Add your credentials here. Format: \n"
-                                   "# api_key=YOUR_API_KEY\n"
+                                   "# api_token=YOUR_API_TOKEN\n"
                                    "# zone_id=YOUR_ZONE_ID\n"
                                    "# email=YOUR_CLOUDFLARE_EMAIL\n"
                                    "[credentials]\n"
-                                   "api_key =\n"
+                                   "api_token =\n"
                                    "zone_id =\n"
                                    "email =\n")
     if ensure_config_file_exists(CREDENTIALS_CFG_FILE, default_credentials_content):
@@ -54,7 +54,6 @@ def read_config_file(file_path):
     try:
         config.read(file_path)
     except configparser.DuplicateSectionError as e:
-        # print_cyan(f"Error: Duplicate section in configuration file '{file_path}': {e}")
         raise
     return config
 
@@ -105,7 +104,7 @@ def update_domain_ids(dns_records):
 
 def validate_credentials():
     credentials = get_credentials_config()
-    if not all(credentials.get(key) for key in ['api_key', 'zone_id', 'email']):
+    if not all(credentials.get(key) for key in ['api_token', 'zone_id', 'email']):
         raise ValueError('Missing credentials. Please check your credentials.cfg file.')
 
 

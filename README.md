@@ -34,10 +34,17 @@ api_key = PFZcfNy9dZwPNGk-ca76CpKQwMYBPFZcfNy
 zone_id = bac2c70a29af0af61ef61e219410ae02902
 email = hey@isuckatpython.com
 ```
-No support for a global API key; you will need to create an API Token. I named the config value 'api_key,' and I just noticed it should have been 'api_token.' If you want to manage multiple domains, unfortunately, this is not possible at the moment, but it's on my to-do list.
+
+
+No support for a global API key; you will need to create an API Token. I named the config value 'api_key,' and I just
+noticed it should have been 'api_token.' If you want to manage multiple domains, unfortunately, this is not possible at
+the moment, but it's on my to-do list.
+
 
 ##### dns_records.cfg
-As you might have already guessed, this is where you configure the records you want to update dynamically. It's another TOML file:
+
+As you might have already guessed, this is where you configure the records you want to update dynamically. It's another
+TOML file:
 
 ```
 [app1.whatever.com]
@@ -49,7 +56,9 @@ As you might have already guessed, this is where you configure the records you w
 proxied=false # you can set this for new records, existing records won't update.
 ```
 
-This is the most basic setup you can have, just your A records in brackets. The application will check if these records exist. If they do, it will compare your IP address against the record and update if necessary. After you run the program with some records, you will see the config file looking a little different:
+This is the most basic setup you can have, just your A records in brackets. The application will check if these records
+exist. If they do, it will compare your IP address against the record and update if necessary. After you run the program
+with some records, you will see the config file looking a little different:
 
 ```
 [app1.whatever.com]
@@ -60,10 +69,12 @@ id = 6bdf812964452cb5e316f7a1087aed8e
 ...
 ```
 
-The ID comes from Cloudflare's API. This way, instead of getting all records repeatedly, we interact with the records directly using their ID. New records won't have that during the run they get created. The next time you run the application, the ID field will be auto-filled.
-
+The ID comes from Cloudflare's API. This way, instead of getting all records repeatedly, we interact with the records
+directly using their ID. New records won't have that during the run they get created. The next time you run the
+application, the ID field will be auto-filled.
 
 ### TODO:
+
 - Some sort of logging
-- Maybe a report HTML file 
-- api_key needs to be api_token 
+- Maybe a report HTML file
+- Multi domain support

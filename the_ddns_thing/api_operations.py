@@ -1,10 +1,10 @@
 import requests
 
 
-def list_dns_records(api_key, zone_id, email):
+def list_dns_records(api_token, zone_id, email):
     url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records"
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {api_token}",
         "Content-Type": "application/json",
         "X-Auth-Email": email
     }
@@ -16,10 +16,10 @@ def list_dns_records(api_key, zone_id, email):
         response.raise_for_status()
 
 
-def create_dns_record(api_key, zone_id, email, name, ip_address, proxied):
+def create_dns_record(api_token, zone_id, email, name, ip_address, proxied):
     url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records"
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {api_token}",
         "Content-Type": "application/json",
         "X-Auth-Email": email
     }
@@ -39,10 +39,10 @@ def create_dns_record(api_key, zone_id, email, name, ip_address, proxied):
         response.raise_for_status()
 
 
-def check_ip_changes_by_id(api_key, zone_id, email, record_id, current_ip):
+def check_ip_changes_by_id(api_token, zone_id, email, record_id, current_ip):
     url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{record_id}"
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {api_token}",
         "Content-Type": "application/json",
         "X-Auth-Email": email
     }
@@ -55,10 +55,10 @@ def check_ip_changes_by_id(api_key, zone_id, email, record_id, current_ip):
         response.raise_for_status()
 
 
-def update_record_by_id(api_key, zone_id, email, record_id, new_ip, proxied):
+def update_record_by_id(api_token, zone_id, email, record_id, new_ip, proxied):
     url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{record_id}"
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {api_token}",
         "Content-Type": "application/json",
         "X-Auth-Email": email
     }
@@ -74,10 +74,10 @@ def update_record_by_id(api_key, zone_id, email, record_id, new_ip, proxied):
         response.raise_for_status()
 
 
-def verify_api_key(api_key):
+def verify_api_token(api_token):
     url = "https://api.cloudflare.com/client/v4/user/tokens/verify"
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {api_token}",
         "Content-Type": "application/json"
     }
 
