@@ -35,11 +35,8 @@ zone_id = bac2c70a29af0af61ef61e219410ae02902
 email = hey@isuckatpython.com
 ```
 
-
-No support for a global API key; you will need to create an API Token. I named the config value 'api_key,' and I just
-noticed it should have been 'api_token.' If you want to manage multiple domains, unfortunately, this is not possible at
-the moment, but it's on my to-do list.
-
+No support for a global API key; you will need to create an API Token. If you want to manage multiple domains,
+unfortunately, this is not possible at the moment, but it's on my to-do list.
 
 ##### dns_records.cfg
 
