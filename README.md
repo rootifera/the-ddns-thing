@@ -75,3 +75,4 @@ application, the ID field will be auto-filled.
 - Some sort of logging
 - Maybe a report HTML file
 - Multi domain support
+- Support for freedns
