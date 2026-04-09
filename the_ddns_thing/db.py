@@ -280,6 +280,7 @@ def bootstrap_application(*, cloudflare_email, cloudflare_api_key, admin_usernam
                 ("last_sync_error", ""),
                 ("last_public_ip", ""),
                 ("last_sync_at", ""),
+                ("sync_interval_seconds", "300"),
             ],
         )
         connection.execute(
@@ -432,6 +433,7 @@ def get_runtime_config():
         [
             "cloudflare_email",
             "cloudflare_api_key",
+            "sync_interval_seconds",
             "last_sync_status",
             "last_sync_summary",
             "last_sync_error",
@@ -439,3 +441,12 @@ def get_runtime_config():
             "last_sync_at",
         ]
     )
+
+
+def get_sync_interval_seconds(default=300):
+    raw_value = get_setting("sync_interval_seconds")
+    try:
+        interval = int(raw_value) if raw_value is not None else default
+    except (TypeError, ValueError):
+        return default
+    return max(30, interval)

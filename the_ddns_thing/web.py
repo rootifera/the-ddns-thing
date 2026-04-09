@@ -1,5 +1,6 @@
 import secrets
 import sqlite3
+from datetime import datetime
 from functools import wraps
 
 from flask import Flask, flash, g, redirect, render_template, request, session, url_for
@@ -19,6 +20,16 @@ def create_app(sync_interval_seconds=300):
 
     app.config["SECRET_KEY"] = secret_key
     app.config["SYNC_INTERVAL_SECONDS"] = sync_interval_seconds
+
+    @app.template_filter("friendly_datetime")
+    def friendly_datetime(value):
+        if not value:
+            return "Never"
+        try:
+            timestamp = datetime.fromisoformat(value)
+        except ValueError:
+            return value
+        return timestamp.strftime("%d %b %Y, %H:%M:%S UTC")
 
     @app.before_request
     def load_current_user():
@@ -132,7 +143,7 @@ def create_app(sync_interval_seconds=300):
             runtime=runtime,
             domains=domains,
             subdomains=subdomains,
-            sync_interval_seconds=app.config["SYNC_INTERVAL_SECONDS"],
+            sync_interval_seconds=db.get_sync_interval_seconds(app.config["SYNC_INTERVAL_SECONDS"]),
         )
 
     @app.post("/domains")
@@ -222,6 +233,21 @@ def create_app(sync_interval_seconds=300):
         except Exception as exc:
             db.update_sync_status("error", "Manual sync failed.", str(exc))
             flash(f"Manual sync failed: {exc}", "error")
+
+        return redirect(url_for("dashboard"))
+
+    @app.post("/settings/sync-interval")
+    @login_required
+    def update_sync_interval():
+        raw_value = request.form.get("sync_interval_seconds", "").strip()
+        try:
+            interval = int(raw_value)
+            if interval < 30:
+                raise ValueError("Sync interval must be at least 30 seconds.")
+            db.set_setting("sync_interval_seconds", str(interval))
+            flash(f"Sync interval updated to {interval} seconds.", "success")
+        except ValueError as exc:
+            flash(str(exc), "error")
 
         return redirect(url_for("dashboard"))
 
