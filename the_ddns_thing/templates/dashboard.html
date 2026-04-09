@@ -6,11 +6,21 @@
         <h2>Sync status</h2>
         <dl class="meta">
             <div><dt>Last status</dt><dd>{{ runtime["last_sync_status"] or "never" }}</dd></div>
-            <div><dt>Last sync</dt><dd>{{ runtime["last_sync_at"] or "Never" }}</dd></div>
+            <div><dt>Last sync</dt><dd>{{ runtime["last_sync_at"]|friendly_datetime }}</dd></div>
             <div><dt>Last IP</dt><dd>{{ runtime["last_public_ip"] or "Unknown" }}</dd></div>
             <div><dt>Managed domains</dt><dd>{{ domains|length }}</dd></div>
             <div><dt>Managed records</dt><dd>{{ subdomains|length }}</dd></div>
             <div><dt>Sync cadence</dt><dd>Every {{ sync_interval_seconds }}s</dd></div>
+            <div>
+                <dt>Next sync</dt>
+                <dd
+                    id="next-sync-countdown"
+                    data-last-sync="{{ runtime['last_sync_at'] or '' }}"
+                    data-sync-interval="{{ sync_interval_seconds }}"
+                >
+                    Calculating...
+                </dd>
+            </div>
         </dl>
         <p class="hint">{{ runtime["last_sync_summary"] }}</p>
         {% if runtime["last_sync_error"] %}
@@ -18,6 +28,13 @@
         {% endif %}
         <form method="post" action="{{ url_for('sync_now') }}">
             <button type="submit" class="secondary">Sync now</button>
+        </form>
+        <form method="post" action="{{ url_for('update_sync_interval') }}" class="form-grid compact-form">
+            <label>
+                <span>Sync interval in seconds</span>
+                <input type="number" name="sync_interval_seconds" min="30" step="1" value="{{ sync_interval_seconds }}" required>
+            </label>
+            <button type="submit">Save interval</button>
         </form>
     </article>
 
@@ -128,4 +145,57 @@
     <p class="hint">No subdomains yet. Add one above and the app will create the DNS record on the next sync.</p>
     {% endif %}
 </section>
+{% endblock %}
+{% block scripts %}
+<script>
+    (function () {
+        const countdown = document.getElementById("next-sync-countdown");
+        if (!countdown) {
+            return;
+        }
+
+        const lastSyncRaw = countdown.dataset.lastSync;
+        const syncIntervalSeconds = Number.parseInt(countdown.dataset.syncInterval || "0", 10);
+
+        function formatRemaining(totalSeconds) {
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            if (hours > 0) {
+                return `${hours}h ${minutes}m ${seconds}s`;
+            }
+            if (minutes > 0) {
+                return `${minutes}m ${seconds}s`;
+            }
+            return `${seconds}s`;
+        }
+
+        function render() {
+            if (!lastSyncRaw || syncIntervalSeconds <= 0) {
+                countdown.textContent = "After the first successful sync";
+                return;
+            }
+
+            const lastSyncMs = Date.parse(lastSyncRaw);
+            if (Number.isNaN(lastSyncMs)) {
+                countdown.textContent = "Unavailable";
+                return;
+            }
+
+            const nextSyncMs = lastSyncMs + (syncIntervalSeconds * 1000);
+            const remainingSeconds = Math.max(0, Math.ceil((nextSyncMs - Date.now()) / 1000));
+
+            if (remainingSeconds === 0) {
+                countdown.textContent = "Due now";
+                return;
+            }
+
+            countdown.textContent = `In ${formatRemaining(remainingSeconds)}`;
+        }
+
+        render();
+        window.setInterval(render, 1000);
+    }());
+</script>
 {% endblock %}

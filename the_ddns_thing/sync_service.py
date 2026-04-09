@@ -155,4 +155,4 @@ class SyncWorker:
                 LOGGER.exception("Background sync failed")
                 db.update_sync_status("error", "Background sync failed.", str(exc))
 
-            sleep(self.interval_seconds)
+            sleep(db.get_sync_interval_seconds(self.interval_seconds))

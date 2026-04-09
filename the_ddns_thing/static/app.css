@@ -98,6 +98,10 @@ td {
     gap: 14px;
 }
 
+.compact-form {
+    margin-top: 16px;
+}
+
 .form-grid label {
     display: grid;
     gap: 8px;
@@ -223,6 +227,11 @@ td {
 
 .mono {
     font-family: "Courier New", monospace;
+}
+
+.meta dd#next-sync-countdown {
+    font-weight: 700;
+    color: var(--text);
 }
 
 .error-text {
