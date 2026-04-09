@@ -1,0 +1,268 @@
+:root {
+    --bg: #f3efe6;
+    --panel: #fffaf1;
+    --text: #231b12;
+    --muted: #6d5b48;
+    --line: #ddcfbb;
+    --accent: #0f766e;
+    --accent-strong: #115e59;
+    --danger: #b42318;
+    --success: #166534;
+    --shadow: 0 20px 60px rgba(58, 41, 24, 0.12);
+    --radius: 18px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Gill Sans", "Trebuchet MS", sans-serif;
+    color: var(--text);
+    background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.12), transparent 28%),
+        linear-gradient(180deg, #f7f2e8 0%, #efe7da 100%);
+}
+
+.shell {
+    width: min(980px, calc(100vw - 32px));
+    margin: 32px auto 48px;
+}
+
+.topbar,
+.section-header,
+.input-row,
+.meta div,
+table td:last-child form {
+    display: flex;
+    align-items: center;
+}
+
+.topbar,
+.section-header {
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.eyebrow {
+    margin: 0 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.72rem;
+    color: var(--muted);
+}
+
+h1,
+h2,
+p {
+    margin-top: 0;
+}
+
+h1 {
+    margin-bottom: 0;
+    font-size: clamp(2rem, 4vw, 3.4rem);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.panel {
+    background: color-mix(in srgb, var(--panel) 92%, white 8%);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+}
+
+.panel.narrow {
+    max-width: 420px;
+}
+
+.lede,
+.hint,
+.error-text,
+label span,
+th,
+td {
+    color: var(--muted);
+}
+
+.form-grid {
+    display: grid;
+    gap: 14px;
+}
+
+.form-grid label {
+    display: grid;
+    gap: 8px;
+}
+
+.full {
+    grid-column: 1 / -1;
+}
+
+input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--text);
+    font: inherit;
+}
+
+select {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--text);
+    font: inherit;
+}
+
+button {
+    border: 0;
+    border-radius: 999px;
+    padding: 12px 18px;
+    background: var(--accent);
+    color: white;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+button.secondary {
+    background: #e7ddd0;
+    color: var(--text);
+}
+
+button.danger {
+    background: #fce8e6;
+    color: var(--danger);
+}
+
+.checkbox {
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+}
+
+.checkbox input {
+    width: auto;
+}
+
+.input-row {
+    gap: 10px;
+}
+
+.suffix {
+    white-space: nowrap;
+    color: var(--muted);
+}
+
+.meta {
+    display: grid;
+    gap: 10px;
+    margin: 18px 0;
+}
+
+.meta div {
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(221, 207, 187, 0.7);
+}
+
+.meta dt,
+.meta dd {
+    margin: 0;
+}
+
+.flash-stack {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.flash {
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid transparent;
+}
+
+.flash.success {
+    background: #ecfdf3;
+    border-color: #abefc6;
+    color: var(--success);
+}
+
+.flash.error {
+    background: #fef3f2;
+    border-color: #fecdca;
+    color: var(--danger);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    text-align: left;
+    padding: 14px 10px;
+    border-bottom: 1px solid rgba(221, 207, 187, 0.7);
+}
+
+.mono {
+    font-family: "Courier New", monospace;
+}
+
+.error-text {
+    color: var(--danger);
+}
+
+@media (max-width: 760px) {
+    .shell {
+        width: min(100vw - 20px, 980px);
+        margin-top: 16px;
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
+    }
+
+    .topbar,
+    .section-header,
+    .input-row,
+    .meta div {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    table,
+    thead,
+    tbody,
+    tr,
+    th,
+    td {
+        display: block;
+        width: 100%;
+    }
+
+    thead {
+        display: none;
+    }
+
+    td {
+        padding-left: 0;
+        padding-right: 0;
+    }
+}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}First Run Setup{% endblock %}
+{% block content %}
+<section class="panel">
+    <p class="lede">
+        Start by saving the Cloudflare credentials and local admin account for this web UI.
+    </p>
+    <form method="post" class="form-grid">
+        <label>
+            <span>Admin username</span>
+            <input type="text" name="admin_username" autocomplete="username" required>
+        </label>
+        <label>
+            <span>Admin password</span>
+            <input type="password" name="admin_password" autocomplete="new-password" required>
+        </label>
+        <label>
+            <span>Cloudflare email</span>
+            <input type="email" name="cloudflare_email" autocomplete="email" required>
+        </label>
+        <label class="full">
+            <span>Cloudflare API key</span>
+            <input type="password" name="cloudflare_api_key" required>
+        </label>
+        <button type="submit">Save and continue</button>
+    </form>
+</section>
+{% endblock %}

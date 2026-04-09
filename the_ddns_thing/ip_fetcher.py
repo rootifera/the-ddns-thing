@@ -2,10 +2,12 @@ import re
 
 import requests
 
+REQUEST_TIMEOUT_SECONDS = 10
+
 
 def get_public_ip_from_url(url):
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=REQUEST_TIMEOUT_SECONDS)
         ip = response.text.strip()
         if re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", ip):
             return ip

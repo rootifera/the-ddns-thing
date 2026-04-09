@@ -1,0 +1,17 @@
+services:
+  the-ddns-thing:
+    image: rootifera/the-ddns-thing:latest
+    container_name: the-ddns-thing
+    ports:
+      - "5000:5000"
+    environment:
+      THE_DDNS_THING_HOST: 0.0.0.0
+      THE_DDNS_THING_PORT: 5000
+      THE_DDNS_THING_SYNC_INTERVAL: 300
+      THE_DDNS_THING_DATA_DIR: /data
+    volumes:
+      - ddns_data:/data
+    restart: unless-stopped
+
+volumes:
+  ddns_data:
