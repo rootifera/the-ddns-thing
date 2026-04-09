@@ -1,78 +1,108 @@
 # The DDNS Thing
 
-Had enough of wrangling with those DDNS tools? Finding them a tad fiddly to set up? And when they do decide
-to cooperate, is it still a bit hit-or-miss?
+`the-ddns-thing` is a small web UI for managing dynamic DNS subdomains on Cloudflare.
 
-Allow me to introduce you to "The-DDNS-Thing."
+Instead of editing flat config files, the app now stores its managed state in SQLite and walks you through first-run setup in the browser.
 
-"The-DDNS-Thing" is as unreliable as any other DDNS tool, if not worse. You might see it making API
-calls here and there, experiencing the odd timeout, and failing without so much as a hint as to why. Frankly, I'm as
-puzzled as you are.
+## What It Does
 
-At the moment it only supports Cloudflare. This is because Cloudflare is the only one I need.
+- Creates a local SQLite database in the app working directory
+- Shows a first-run setup form for:
+  - admin username
+  - admin password
+  - Cloudflare email
+  - Cloudflare global API key
+- Lets you add and remove multiple managed root domains from the web dashboard
+- Looks up each Cloudflare zone automatically when you add a domain
+- Lets you add and remove managed subdomains under any configured domain
+- Runs a background sync loop that keeps those `A` records pointed at the machine's current public IPv4 address
 
-Anyway, give it a whirl and see how it goes!
+## Run It
 
-### Usage:
+Install dependencies and start the app:
 
-The usage is fairly simple. When you run the application for the first time, it creates two files:
-
-```
-~/.config/the-ddns-thing/dns_records.cfg
-~/.config/the-ddns-thing/credentials.cfg
-```
-
-You will need to edit both of these files for the application to function.
-
-##### credentials.cfg:
-
-This is where you set the credentials. It's a TOML file with expected values:
-
-```
-[credentials]
-api_key = PFZcfNy9dZwPNGk-ca76CpKQwMYBPFZcfNy
-zone_id = bac2c70a29af0af61ef61e219410ae02902
-email = hey@isuckatpython.com
+```bash
+pip install -r requirements.txt
+python -m the_ddns_thing.main
 ```
 
-No support for a global API key; you will need to create an API Token. If you want to manage multiple domains,
-unfortunately, this is not possible at the moment, but it's on my to-do list.
+Or after installing the package:
 
-##### dns_records.cfg
-
-As you might have already guessed, this is where you configure the records you want to update dynamically. It's another
-TOML file:
-
-```
-[app1.whatever.com]
-[app2.whatever.com]
-[hey.whatever.com]
-
-# following record doesn't exist:
-[new-record.whatever.com]
-proxied=false # you can set this for new records, existing records won't update.
+```bash
+the-ddns-thing
 ```
 
-This is the most basic setup you can have, just your A records in brackets. The application will check if these records
-exist. If they do, it will compare your IP address against the record and update if necessary. After you run the program
-with some records, you will see the config file looking a little different:
+By default the web UI starts on `http://127.0.0.1:5000`.
 
-```
-[app1.whatever.com]
-id = ea64db18dd72578a276ea64db18dd725
+You can override the bind address, port, and sync interval:
 
-[app2.whatever.com]
-id = 6bdf812964452cb5e316f7a1087aed8e
-...
+```bash
+the-ddns-thing --host 0.0.0.0 --port 8080 --sync-interval 300
 ```
 
-The ID comes from Cloudflare's API. This way, instead of getting all records repeatedly, we interact with the records
-directly using their ID. New records won't have that during the run they get created. The next time you run the
-application, the ID field will be auto-filled.
+## Storage
 
-### TODO:
+By default outside Docker, the application stores local data in the current working directory:
 
-- Some sort of logging
-- Maybe a report HTML file
-- Multi domain support
-- Support for freedns
+- `./the-ddns-thing.db`
+- `./secret.key`
+
+You can override that location with `THE_DDNS_THING_DATA_DIR` or `--data-dir`.
+
+## Docker
+
+Pull and run from Docker Hub:
+
+```bash
+docker pull rootifera/the-ddns-thing:latest
+docker run --rm -p 5000:5000 rootifera/the-ddns-thing:latest
+```
+
+For persistent data with Docker, mount a dedicated data path instead of the repo:
+
+```bash
+docker run --rm -p 5000:5000 -v ddns_data:/data rootifera/the-ddns-thing:latest
+```
+
+Or with Compose:
+
+```bash
+docker compose up -d
+```
+
+The checked-in [docker-compose.yml](/home/omur/repos/the-ddns-thing/docker-compose.yml) uses the published `rootifera/the-ddns-thing:latest` image and stores the SQLite database plus secret key in a named Docker volume mounted at `/data`.
+
+If you want to build locally instead of pulling from Docker Hub:
+
+```bash
+docker build -t the-ddns-thing .
+docker run --rm -p 5000:5000 the-ddns-thing
+```
+
+The container uses `/app` for code and `/data` for persisted state. That keeps runtime data separate from the image contents and avoids leaking files from your repo into the container.
+
+The database contains:
+
+- Cloudflare connection settings
+- the local admin account
+- managed root domains and zone IDs
+- managed subdomains
+- sync status details such as last IP and last sync result
+
+## Current Scope
+
+This version is intentionally simple:
+
+- one Cloudflare account per installation
+- multiple Cloudflare zones per installation
+- domains and subdomains can be added and removed
+- no edit flow yet
+- IPv4 `A` records only
+
+## Next Good Improvements
+
+- stronger authentication flows
+- HTTPS/reverse-proxy deployment guidance
+- audit history in the UI
+- better test coverage around setup, login, and sync
+- per-domain sync history and filtering

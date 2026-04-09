@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Domain Manager{% endblock %}
+{% block content %}
+<section class="grid">
+    <article class="panel">
+        <h2>Sync status</h2>
+        <dl class="meta">
+            <div><dt>Last status</dt><dd>{{ runtime["last_sync_status"] or "never" }}</dd></div>
+            <div><dt>Last sync</dt><dd>{{ runtime["last_sync_at"] or "Never" }}</dd></div>
+            <div><dt>Last IP</dt><dd>{{ runtime["last_public_ip"] or "Unknown" }}</dd></div>
+            <div><dt>Managed domains</dt><dd>{{ domains|length }}</dd></div>
+            <div><dt>Managed records</dt><dd>{{ subdomains|length }}</dd></div>
+            <div><dt>Sync cadence</dt><dd>Every {{ sync_interval_seconds }}s</dd></div>
+        </dl>
+        <p class="hint">{{ runtime["last_sync_summary"] }}</p>
+        {% if runtime["last_sync_error"] %}
+        <p class="error-text">{{ runtime["last_sync_error"] }}</p>
+        {% endif %}
+        <form method="post" action="{{ url_for('sync_now') }}">
+            <button type="submit" class="secondary">Sync now</button>
+        </form>
+    </article>
+
+    <article class="panel">
+        <h2>Add domain</h2>
+        <form method="post" action="{{ url_for('add_domain') }}" class="form-grid">
+            <label>
+                <span>Root domain</span>
+                <input type="text" name="root_domain" placeholder="example.com" required>
+            </label>
+            <button type="submit">Add domain</button>
+        </form>
+    </article>
+</section>
+
+<section class="grid">
+    <article class="panel">
+        <h2>Add subdomain</h2>
+        <form method="post" action="{{ url_for('add_subdomain') }}" class="form-grid">
+            <label>
+                <span>Domain</span>
+                <select name="domain_id" required>
+                    <option value="">Choose a domain</option>
+                    {% for domain in domains %}
+                    <option value="{{ domain['id'] }}">{{ domain['root_domain'] }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Subdomain</span>
+                <input type="text" name="name" placeholder="app" required>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" name="proxied">
+                <span>Proxy through Cloudflare</span>
+            </label>
+            <button type="submit">Add subdomain</button>
+        </form>
+    </article>
+
+    <article class="panel">
+        <div class="section-header">
+            <h2>Domains</h2>
+            <p>{{ domains|length }} configured</p>
+        </div>
+        {% if domains %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Domain</th>
+                    <th>Zone ID</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for domain in domains %}
+                <tr>
+                    <td>{{ domain["root_domain"] }}</td>
+                    <td class="mono">{{ domain["zone_id"] }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('delete_domain', domain_id=domain['id']) }}">
+                            <button type="submit" class="danger">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="hint">No domains yet. Add a root domain first, then start adding subdomains under it.</p>
+        {% endif %}
+    </article>
+</section>
+
+<section class="panel">
+    <div class="section-header">
+        <h2>Managed subdomains</h2>
+        <p>{{ subdomains|length }} configured</p>
+    </div>
+    {% if subdomains %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Domain</th>
+                <th>Proxy</th>
+                <th>Record ID</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for subdomain in subdomains %}
+            <tr>
+                <td>{{ subdomain["name"] }}</td>
+                <td>{{ subdomain["root_domain"] }}</td>
+                <td>{{ "Yes" if subdomain["proxied"] else "No" }}</td>
+                <td class="mono">{{ subdomain["record_id"] or "Pending" }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('delete_subdomain', subdomain_id=subdomain['id']) }}">
+                        <button type="submit" class="danger">Remove</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="hint">No subdomains yet. Add one above and the app will create the DNS record on the next sync.</p>
+    {% endif %}
+</section>
+{% endblock %}

@@ -9,6 +9,8 @@ setup(
     long_description=open('README.md').read(),
     url='https://github.com/rootifera/the-ddns-thing',
     packages=find_packages(),
+    include_package_data=True,
+    package_data={'the_ddns_thing': ['templates/*.html', 'static/*.css']},
     install_requires=open('requirements.txt').read().splitlines(),
     classifiers=[
         'Programming Language :: Python :: 3',
