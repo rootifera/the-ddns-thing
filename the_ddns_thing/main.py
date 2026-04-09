@@ -14,7 +14,7 @@ def main():
     )
     parser.add_argument(
         "--port",
-        default=int(os.environ.get("THE_DDNS_THING_PORT", "5000")),
+        default=int(os.environ.get("THE_DDNS_THING_PORT", "10710")),
         type=int,
         help="Port to listen on.",
     )
