@@ -1,9 +1,13 @@
 import secrets
 import sqlite3
 import json
+import base64
+from io import BytesIO
 from datetime import datetime
 from functools import wraps
 
+import pyotp
+import qrcode
 from flask import Flask, Response, flash, g, redirect, render_template, request, session, url_for
 
 from . import api_operations, db, sync_service
@@ -55,7 +59,7 @@ def create_app(sync_interval_seconds=300):
 
     @app.before_request
     def require_setup_and_authentication():
-        allowed_endpoints = {"setup", "login", "static"}
+        allowed_endpoints = {"setup", "login", "login_totp", "static"}
         endpoint = request.endpoint or ""
 
         if endpoint == "static":
@@ -74,6 +78,13 @@ def create_app(sync_interval_seconds=300):
                 return redirect(url_for("dashboard"))
             return None
 
+        if endpoint == "login_totp":
+            if g.current_user:
+                return redirect(url_for("dashboard"))
+            if not session.get("pending_2fa_user_id"):
+                return redirect(url_for("login"))
+            return None
+
         if endpoint in allowed_endpoints:
             return None
 
@@ -90,6 +101,19 @@ def create_app(sync_interval_seconds=300):
             return view_func(*args, **kwargs)
 
         return wrapped_view
+
+    def build_totp_provisioning_uri(secret, username):
+        return pyotp.TOTP(secret).provisioning_uri(
+            name=username,
+            issuer_name="The DDNS Thing",
+        )
+
+    def build_qr_data_uri(payload):
+        image = qrcode.make(payload)
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+        return f"data:image/png;base64,{encoded}"
 
     @app.route("/setup", methods=["GET", "POST"])
     def setup():
@@ -136,12 +160,40 @@ def create_app(sync_interval_seconds=300):
             user = db.verify_admin_user(username, password)
 
             if user:
+                full_user = db.get_admin_user_by_username(username)
+                if full_user and full_user.get("totp_enabled") and full_user.get("totp_secret"):
+                    session.clear()
+                    session["pending_2fa_user_id"] = user["id"]
+                    return redirect(url_for("login_totp"))
+
                 session["user_id"] = user["id"]
                 return redirect(url_for("dashboard"))
 
             flash("Invalid username or password.", "error")
 
         return render_template("login.html")
+
+    @app.route("/login/totp", methods=["GET", "POST"])
+    def login_totp():
+        pending_user_id = session.get("pending_2fa_user_id")
+        if not pending_user_id:
+            return redirect(url_for("login"))
+
+        user = db.get_admin_totp_config(pending_user_id)
+        if not user or not user.get("totp_enabled") or not user.get("totp_secret"):
+            session.pop("pending_2fa_user_id", None)
+            return redirect(url_for("login"))
+
+        if request.method == "POST":
+            code = request.form.get("code", "").strip().replace(" ", "")
+            totp = pyotp.TOTP(user["totp_secret"])
+            if totp.verify(code, valid_window=1):
+                session.clear()
+                session["user_id"] = user["id"]
+                return redirect(url_for("dashboard"))
+            flash("Invalid authentication code.", "error")
+
+        return render_template("login_totp.html", username=user["username"])
 
     @app.post("/logout")
     @login_required
@@ -186,6 +238,27 @@ def create_app(sync_interval_seconds=300):
             domains_error=domains_error,
             subdomains=subdomains,
             sync_interval_seconds=db.get_sync_interval_seconds(app.config["SYNC_INTERVAL_SECONDS"]),
+        )
+
+    @app.get("/account")
+    @login_required
+    def account_page():
+        g.active_nav = "account"
+        admin_totp = db.get_admin_totp_config(g.current_user["id"])
+        pending_totp_secret = session.get("pending_totp_secret")
+        pending_totp_uri = None
+        pending_totp_qr = None
+
+        if pending_totp_secret and admin_totp:
+            pending_totp_uri = build_totp_provisioning_uri(pending_totp_secret, admin_totp["username"])
+            pending_totp_qr = build_qr_data_uri(pending_totp_uri)
+
+        return render_template(
+            "account.html",
+            admin_totp=admin_totp,
+            pending_totp_secret=pending_totp_secret,
+            pending_totp_uri=pending_totp_uri,
+            pending_totp_qr=pending_totp_qr,
         )
 
     @app.get("/subdomains")
@@ -339,5 +412,58 @@ def create_app(sync_interval_seconds=300):
             flash(f"Import failed: {exc}", "error")
 
         return redirect(url_for("dashboard"))
+
+    @app.post("/security/totp/start")
+    @login_required
+    def start_totp_setup():
+        secret = pyotp.random_base32()
+        session["pending_totp_secret"] = secret
+        flash("TOTP setup started. Confirm it with a code from your authenticator app.", "success")
+        return redirect(url_for("account_page"))
+
+    @app.post("/security/totp/confirm")
+    @login_required
+    def confirm_totp_setup():
+        secret = session.get("pending_totp_secret")
+        if not secret:
+            flash("Start TOTP setup first.", "error")
+            return redirect(url_for("account_page"))
+
+        code = request.form.get("code", "").strip().replace(" ", "")
+        totp = pyotp.TOTP(secret)
+        if not totp.verify(code, valid_window=1):
+            flash("Invalid authentication code.", "error")
+            return redirect(url_for("account_page"))
+
+        db.set_admin_totp(g.current_user["id"], secret=secret, enabled=True)
+        session.pop("pending_totp_secret", None)
+        flash("Two-factor authentication is now enabled.", "success")
+        return redirect(url_for("account_page"))
+
+    @app.post("/security/totp/cancel")
+    @login_required
+    def cancel_totp_setup():
+        session.pop("pending_totp_secret", None)
+        flash("TOTP setup cancelled.", "success")
+        return redirect(url_for("account_page"))
+
+    @app.post("/security/totp/disable")
+    @login_required
+    def disable_totp():
+        admin_totp = db.get_admin_totp_config(g.current_user["id"])
+        if not admin_totp or not admin_totp.get("totp_enabled") or not admin_totp.get("totp_secret"):
+            flash("TOTP is not enabled.", "error")
+            return redirect(url_for("account_page"))
+
+        code = request.form.get("code", "").strip().replace(" ", "")
+        totp = pyotp.TOTP(admin_totp["totp_secret"])
+        if not totp.verify(code, valid_window=1):
+            flash("Invalid authentication code.", "error")
+            return redirect(url_for("account_page"))
+
+        db.disable_admin_totp(g.current_user["id"])
+        session.pop("pending_totp_secret", None)
+        flash("Two-factor authentication has been disabled.", "success")
+        return redirect(url_for("account_page"))
 
     return app

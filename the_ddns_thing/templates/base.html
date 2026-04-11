@@ -14,9 +14,12 @@
             <h1>{% block title %}{% endblock %}</h1>
         </div>
         {% if g.current_user %}
-        <form method="post" action="{{ url_for('logout') }}">
-            <button class="secondary" type="submit">Log out</button>
-        </form>
+        <div class="topbar-actions">
+            <a href="{{ url_for('account_page') }}" class="topbar-link {{ 'active' if g.active_nav == 'account' else '' }}">Account</a>
+            <form method="post" action="{{ url_for('logout') }}">
+                <button class="secondary" type="submit">Log out</button>
+            </form>
+        </div>
         {% endif %}
     </header>
 

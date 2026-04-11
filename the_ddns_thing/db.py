@@ -158,6 +158,12 @@ def _migrate_schema(connection):
         """
     )
 
+    admin_columns = _table_columns(connection, "admin_users")
+    if "totp_secret" not in admin_columns:
+        connection.execute("ALTER TABLE admin_users ADD COLUMN totp_secret TEXT")
+    if "totp_enabled" not in admin_columns:
+        connection.execute("ALTER TABLE admin_users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0")
+
 
 def init_db():
     with get_connection() as connection:
@@ -275,17 +281,64 @@ def verify_admin_user(username, password):
     return {"id": row["id"], "username": row["username"]}
 
 
+def get_admin_user_by_username(username):
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT id, username, password_hash, totp_secret, totp_enabled
+            FROM admin_users
+            WHERE username = ?
+            """,
+            (username,),
+        ).fetchone()
+
+    return dict(row) if row else None
+
+
 def get_admin_user(user_id):
     with get_connection() as connection:
         row = connection.execute(
-            "SELECT id, username FROM admin_users WHERE id = ?",
+            "SELECT id, username, totp_enabled FROM admin_users WHERE id = ?",
             (user_id,),
         ).fetchone()
 
     if not row:
         return None
 
-    return {"id": row["id"], "username": row["username"]}
+    return {"id": row["id"], "username": row["username"], "totp_enabled": bool(row["totp_enabled"])}
+
+
+def get_admin_totp_config(user_id):
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT id, username, totp_secret, totp_enabled FROM admin_users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def set_admin_totp(user_id, *, secret, enabled):
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE admin_users
+            SET totp_secret = ?, totp_enabled = ?
+            WHERE id = ?
+            """,
+            (secret, int(bool(enabled)), user_id),
+        )
+
+
+def disable_admin_totp(user_id):
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE admin_users
+            SET totp_secret = NULL, totp_enabled = 0
+            WHERE id = ?
+            """,
+            (user_id,),
+        )
 
 
 def bootstrap_application(*, cloudflare_email, cloudflare_api_key, admin_username, admin_password):
