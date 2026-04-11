@@ -32,12 +32,12 @@ Or after installing the package:
 the-ddns-thing
 ```
 
-By default the web UI starts on `http://127.0.0.1:5000`.
+By default the web UI starts on `http://127.0.0.1:10710`.
 
 You can override the bind address, port, and sync interval:
 
 ```bash
-the-ddns-thing --host 0.0.0.0 --port 8080 --sync-interval 300
+the-ddns-thing --host 0.0.0.0 --port 10710 --sync-interval 300
 ```
 
 ## Storage
@@ -55,13 +55,13 @@ Pull and run from Docker Hub:
 
 ```bash
 docker pull rootifera/the-ddns-thing:latest
-docker run --rm -p 5000:5000 rootifera/the-ddns-thing:latest
+docker run --rm -p 10710:10710 rootifera/the-ddns-thing:latest
 ```
 
 For persistent data with Docker, mount a dedicated data path instead of the repo:
 
 ```bash
-docker run --rm -p 5000:5000 -v ddns_data:/data rootifera/the-ddns-thing:latest
+docker run --rm -p 10710:10710 -v ddns_data:/data rootifera/the-ddns-thing:latest
 ```
 
 Or with Compose:
@@ -76,7 +76,7 @@ If you want to build locally instead of pulling from Docker Hub:
 
 ```bash
 docker build -t the-ddns-thing .
-docker run --rm -p 5000:5000 the-ddns-thing
+docker run --rm -p 10710:10710 the-ddns-thing
 ```
 
 The container uses `/app` for code and `/data` for persisted state. That keeps runtime data separate from the image contents and avoids leaking files from your repo into the container.

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Two-Factor Login{% endblock %}
+{% block content %}
+<section class="panel narrow">
+    <p class="lede">Enter the 6-digit code from your authenticator app for {{ username }}.</p>
+    <form method="post" class="form-grid">
+        <label>
+            <span>Authentication code</span>
+            <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" required>
+        </label>
+        <button type="submit">Verify code</button>
+    </form>
+</section>
+{% endblock %}

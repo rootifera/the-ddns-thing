@@ -1,149 +1,175 @@
 {% extends "base.html" %}
-{% block title %}Domain Manager{% endblock %}
+{% block title %}Dashboard{% endblock %}
 {% block content %}
-<section class="grid">
-    <article class="panel">
-        <h2>Sync status</h2>
-        <dl class="meta">
-            <div><dt>Last status</dt><dd>{{ runtime["last_sync_status"] or "never" }}</dd></div>
-            <div><dt>Last sync</dt><dd>{{ runtime["last_sync_at"]|friendly_datetime }}</dd></div>
-            <div><dt>Last IP</dt><dd>{{ runtime["last_public_ip"] or "Unknown" }}</dd></div>
-            <div><dt>Managed domains</dt><dd>{{ domains|length }}</dd></div>
-            <div><dt>Managed records</dt><dd>{{ subdomains|length }}</dd></div>
-            <div><dt>Sync cadence</dt><dd>Every {{ sync_interval_seconds }}s</dd></div>
-            <div>
-                <dt>Next sync</dt>
-                <dd
-                    id="next-sync-countdown"
-                    data-last-sync="{{ runtime['last_sync_at'] or '' }}"
-                    data-sync-interval="{{ sync_interval_seconds }}"
-                >
-                    Calculating...
-                </dd>
+<section class="stack">
+    <section class="grid top-cards">
+        <article class="panel">
+            <div class="section-header">
+                <h2>Sync Status</h2>
+                <p>Current state</p>
             </div>
-        </dl>
-        <p class="hint">{{ runtime["last_sync_summary"] }}</p>
-        {% if runtime["last_sync_error"] %}
-        <p class="error-text">{{ runtime["last_sync_error"] }}</p>
-        {% endif %}
-        <form method="post" action="{{ url_for('sync_now') }}">
-            <button type="submit" class="secondary">Sync now</button>
-        </form>
-        <form method="post" action="{{ url_for('update_sync_interval') }}" class="form-grid compact-form">
-            <label>
-                <span>Sync interval in seconds</span>
-                <input type="number" name="sync_interval_seconds" min="30" step="1" value="{{ sync_interval_seconds }}" required>
-            </label>
-            <button type="submit">Save interval</button>
-        </form>
-    </article>
+            <dl class="meta">
+                <div><dt>Last status</dt><dd>{{ runtime["last_sync_status"] or "never" }}</dd></div>
+                <div><dt>Last sync</dt><dd>{{ runtime["last_sync_at"]|friendly_datetime }}</dd></div>
+                <div><dt>Last IP</dt><dd>{{ runtime["last_public_ip"] or "Unknown" }}</dd></div>
+                <div><dt>Sync cadence</dt><dd>Every {{ sync_interval_seconds }}s</dd></div>
+                <div>
+                    <dt>Next sync</dt>
+                    <dd
+                        id="next-sync-countdown"
+                        data-last-sync="{{ runtime['last_sync_at'] or '' }}"
+                        data-sync-interval="{{ sync_interval_seconds }}"
+                    >
+                        Calculating...
+                    </dd>
+                </div>
+            </dl>
+            <p class="hint">{{ runtime["last_sync_summary"] }}</p>
+            {% if runtime["last_sync_error"] %}
+            <p class="error-text">{{ runtime["last_sync_error"] }}</p>
+            {% endif %}
+            <div class="action-row">
+                <form method="post" action="{{ url_for('sync_now') }}">
+                    <button type="submit" class="secondary">Sync now</button>
+                </form>
+                <form method="post" action="{{ url_for('update_sync_interval') }}" class="inline-form">
+                    <label>
+                        <span>Sync interval in seconds</span>
+                        <input type="number" name="sync_interval_seconds" min="30" step="1" value="{{ sync_interval_seconds }}" required>
+                    </label>
+                    <button type="submit">Save interval</button>
+                </form>
+            </div>
+        </article>
+
+        <article class="panel">
+            <div class="section-header">
+                <h2>Statistics</h2>
+                <p>Useful totals</p>
+            </div>
+            <dl class="meta">
+                <div><dt>App started</dt><dd>{{ runtime["app_created_at"]|friendly_datetime }}</dd></div>
+                <div><dt>Total sync runs</dt><dd>{{ runtime["sync_runs_total"]|integer_or_zero }}</dd></div>
+                <div><dt>Successful runs</dt><dd>{{ runtime["sync_runs_successful"]|integer_or_zero }}</dd></div>
+                <div><dt>Failed runs</dt><dd>{{ runtime["sync_runs_failed"]|integer_or_zero }}</dd></div>
+                <div><dt>Enabled domains</dt><dd>{{ domains|length }}</dd></div>
+                <div><dt>Managed records</dt><dd>{{ subdomains|length }}</dd></div>
+            </dl>
+        </article>
+    </section>
 
     <article class="panel">
-        <h2>Add domain</h2>
-        <form method="post" action="{{ url_for('add_domain') }}" class="form-grid">
-            <label>
-                <span>Root domain</span>
-                <input type="text" name="root_domain" placeholder="example.com" required>
-            </label>
-            <button type="submit">Add domain</button>
-        </form>
-    </article>
-</section>
-
-<section class="grid">
-    <article class="panel">
-        <h2>Add subdomain</h2>
-        <form method="post" action="{{ url_for('add_subdomain') }}" class="form-grid">
-            <label>
-                <span>Domain</span>
-                <select name="domain_id" required>
-                    <option value="">Choose a domain</option>
-                    {% for domain in domains %}
-                    <option value="{{ domain['id'] }}">{{ domain['root_domain'] }}</option>
+        <div class="section-header">
+            <h2>Available Domains</h2>
+            <p>{{ available_domains|length }} from Cloudflare</p>
+        </div>
+        {% if domains_error %}
+        <p class="error-text">{{ domains_error }}</p>
+        {% elif available_domains %}
+        <div class="table-scroll medium-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Domain</th>
+                        <th>Zone ID</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for domain in available_domains %}
+                    <tr>
+                        <td>{{ domain["root_domain"] }}</td>
+                        <td class="mono">{{ domain["zone_id"] }}</td>
+                        <td>{{ "Managed" if domain["is_managed"] else "Available" }}</td>
+                        <td>
+                            {% if domain["is_managed"] %}
+                            <button type="button" class="secondary" disabled>Enabled</button>
+                            {% else %}
+                            <form method="post" action="{{ url_for('add_domain') }}">
+                                <input type="hidden" name="root_domain" value="{{ domain['root_domain'] }}">
+                                <input type="hidden" name="zone_id" value="{{ domain['zone_id'] }}">
+                                <button type="submit">Enable</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
                     {% endfor %}
-                </select>
-            </label>
-            <label>
-                <span>Subdomain</span>
-                <input type="text" name="name" placeholder="app" required>
-            </label>
-            <label class="checkbox">
-                <input type="checkbox" name="proxied">
-                <span>Proxy through Cloudflare</span>
-            </label>
-            <button type="submit">Add subdomain</button>
-        </form>
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="hint">No active zones were returned from Cloudflare for this account.</p>
+        {% endif %}
     </article>
 
     <article class="panel">
         <div class="section-header">
-            <h2>Domains</h2>
+            <h2>Enabled Domains</h2>
             <p>{{ domains|length }} configured</p>
         </div>
         {% if domains %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Domain</th>
-                    <th>Zone ID</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for domain in domains %}
-                <tr>
-                    <td>{{ domain["root_domain"] }}</td>
-                    <td class="mono">{{ domain["zone_id"] }}</td>
-                    <td>
-                        <form method="post" action="{{ url_for('delete_domain', domain_id=domain['id']) }}">
-                            <button type="submit" class="danger">Remove</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Domain</th>
+                        <th>Zone ID</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for domain in domains %}
+                    <tr>
+                        <td>{{ domain["root_domain"] }}</td>
+                        <td class="mono">{{ domain["zone_id"] }}</td>
+                        <td>
+                            <form method="post" action="{{ url_for('delete_domain', domain_id=domain['id']) }}">
+                                <button type="submit" class="danger">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         {% else %}
-        <p class="hint">No domains yet. Add a root domain first, then start adding subdomains under it.</p>
+        <p class="hint">No managed domains yet. Enable one from the Cloudflare domain list first.</p>
         {% endif %}
     </article>
-</section>
 
-<section class="panel">
-    <div class="section-header">
-        <h2>Managed subdomains</h2>
-        <p>{{ subdomains|length }} configured</p>
-    </div>
-    {% if subdomains %}
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Domain</th>
-                <th>Proxy</th>
-                <th>Record ID</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for subdomain in subdomains %}
-            <tr>
-                <td>{{ subdomain["name"] }}</td>
-                <td>{{ subdomain["root_domain"] }}</td>
-                <td>{{ "Yes" if subdomain["proxied"] else "No" }}</td>
-                <td class="mono">{{ subdomain["record_id"] or "Pending" }}</td>
-                <td>
-                    <form method="post" action="{{ url_for('delete_subdomain', subdomain_id=subdomain['id']) }}">
-                        <button type="submit" class="danger">Remove</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p class="hint">No subdomains yet. Add one above and the app will create the DNS record on the next sync.</p>
-    {% endif %}
+    <article class="panel">
+        <div class="section-header">
+            <h2>Import / Export</h2>
+            <p>Backup or move your managed records</p>
+        </div>
+        <div class="transfer-grid">
+            <section class="transfer-card">
+                <p class="transfer-kicker">Export</p>
+                <h3>Download managed records</h3>
+                <p class="hint">Save your enabled domains and DDNS records as a JSON backup.</p>
+                <form method="get" action="{{ url_for('export_records') }}">
+                    <button type="submit" class="secondary">Export records</button>
+                </form>
+            </section>
+
+            <section class="transfer-card">
+                <p class="transfer-kicker">Import</p>
+                <h3>Restore from JSON</h3>
+                <p class="hint">Import an earlier export to add or merge domains and subdomains.</p>
+                <form method="post" action="{{ url_for('import_records') }}" enctype="multipart/form-data" class="transfer-form">
+                    <label class="file-picker">
+                        <span class="file-picker-label">Choose JSON file</span>
+                        <input type="file" id="records-file-input" name="records_file" accept="application/json,.json" required>
+                        <span class="file-picker-name" id="records-file-name">No file chosen</span>
+                    </label>
+                    <button type="submit">Import records</button>
+                </form>
+            </section>
+        </div>
+        <p class="hint">This imports and exports enabled domains plus managed subdomains. It does not include admin credentials or Cloudflare API keys.</p>
+    </article>
+
 </section>
 {% endblock %}
 {% block scripts %}
@@ -196,6 +222,18 @@
 
         render();
         window.setInterval(render, 1000);
+    }());
+
+    (function () {
+        const input = document.getElementById("records-file-input");
+        const label = document.getElementById("records-file-name");
+        if (!input || !label) {
+            return;
+        }
+
+        input.addEventListener("change", function () {
+            label.textContent = input.files && input.files.length ? input.files[0].name : "No file chosen";
+        });
     }());
 </script>
 {% endblock %}

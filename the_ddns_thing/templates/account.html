@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Account{% endblock %}
+{% block content %}
+<section class="stack">
+    <article class="panel panel-narrow account-panel">
+        <div class="section-header">
+            <div>
+                <h2>Account Security</h2>
+                <p>{{ g.current_user["username"] }}</p>
+            </div>
+            <span class="status-pill {{ 'status-enabled' if admin_totp and admin_totp['totp_enabled'] else 'status-disabled' }}">
+                {{ "2FA enabled" if admin_totp and admin_totp["totp_enabled"] else "2FA disabled" }}
+            </span>
+        </div>
+
+        {% if admin_totp and admin_totp["totp_enabled"] %}
+        <p class="hint">Your admin login is protected with a TOTP authenticator app.</p>
+        <form method="post" action="{{ url_for('disable_totp') }}" class="inline-form">
+            <label>
+                <span>Current TOTP code</span>
+                <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" required>
+            </label>
+            <button type="submit" class="danger">Disable 2FA</button>
+        </form>
+        {% elif pending_totp_secret %}
+        <div class="totp-setup-grid">
+            <section class="qr-card">
+                <p class="secret-label">Scan in your authenticator app</p>
+                <img src="{{ pending_totp_qr }}" alt="TOTP setup QR code" class="totp-qr-image">
+            </section>
+
+            <section class="security-setup">
+                <p class="hint">Scan the QR code with your authenticator app, then enter the 6-digit code to finish setup.</p>
+                <div class="secret-block">
+                    <p class="secret-label">Manual secret</p>
+                    <p class="secret-value mono">{{ pending_totp_secret }}</p>
+                </div>
+                <div class="secret-block">
+                    <p class="secret-label">Provisioning URI</p>
+                    <p class="secret-value mono break-all">{{ pending_totp_uri }}</p>
+                </div>
+                <form method="post" action="{{ url_for('confirm_totp_setup') }}" class="inline-form">
+                    <label>
+                        <span>Authenticator code</span>
+                        <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" required>
+                    </label>
+                    <button type="submit">Enable 2FA</button>
+                </form>
+                <form method="post" action="{{ url_for('cancel_totp_setup') }}">
+                    <button type="submit" class="secondary">Cancel setup</button>
+                </form>
+            </section>
+        </div>
+        {% else %}
+        <p class="hint">Add a second step to admin login using any TOTP authenticator app.</p>
+        <form method="post" action="{{ url_for('start_totp_setup') }}">
+            <button type="submit" class="secondary">Set up 2FA</button>
+        </form>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

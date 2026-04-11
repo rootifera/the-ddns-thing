@@ -3,7 +3,7 @@ services:
     image: rootifera/the-ddns-thing:latest
     container_name: the-ddns-thing
     ports:
-      - "5000:5000"
+      - "10710:10710"
     environment:
       THE_DDNS_THING_HOST: 0.0.0.0
       THE_DDNS_THING_PORT: 10710
