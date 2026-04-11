@@ -1,9 +1,10 @@
 import secrets
 import sqlite3
+import json
 from datetime import datetime
 from functools import wraps
 
-from flask import Flask, flash, g, redirect, render_template, request, session, url_for
+from flask import Flask, Response, flash, g, redirect, render_template, request, session, url_for
 
 from . import api_operations, db, sync_service
 
@@ -31,10 +32,26 @@ def create_app(sync_interval_seconds=300):
             return value
         return timestamp.strftime("%d %b %Y, %H:%M:%S UTC")
 
+    @app.template_filter("record_display_name")
+    def record_display_name(subdomain_name):
+        return "Root domain" if subdomain_name == "@" else subdomain_name
+
+    @app.template_filter("display_ip")
+    def display_ip(value):
+        return value or "Unknown"
+
+    @app.template_filter("integer_or_zero")
+    def integer_or_zero(value):
+        try:
+            return int(value or 0)
+        except (TypeError, ValueError):
+            return 0
+
     @app.before_request
     def load_current_user():
         user_id = session.get("user_id")
         g.current_user = db.get_admin_user(user_id) if user_id else None
+        g.active_nav = None
 
     @app.before_request
     def require_setup_and_authentication():
@@ -135,28 +152,65 @@ def create_app(sync_interval_seconds=300):
     @app.get("/")
     @login_required
     def dashboard():
+        g.active_nav = "dashboard"
         runtime = db.get_runtime_config()
         domains = db.list_domains()
         subdomains = db.list_subdomains()
+        available_domains = []
+        domains_error = None
+
+        try:
+            credentials = {
+                "cloudflare_email": runtime["cloudflare_email"],
+                "cloudflare_api_key": runtime["cloudflare_api_key"],
+            }
+            managed_zone_ids = {domain["zone_id"] for domain in domains}
+            available_domains = [
+                {
+                    "root_domain": zone["name"],
+                    "zone_id": zone["id"],
+                    "is_managed": zone["id"] in managed_zone_ids,
+                }
+                for zone in api_operations.list_zones(credentials)
+                if zone.get("name") and zone.get("id")
+            ]
+            available_domains.sort(key=lambda item: item["root_domain"])
+        except ValueError as exc:
+            domains_error = str(exc)
+
         return render_template(
             "dashboard.html",
             runtime=runtime,
             domains=domains,
+            available_domains=available_domains,
+            domains_error=domains_error,
             subdomains=subdomains,
             sync_interval_seconds=db.get_sync_interval_seconds(app.config["SYNC_INTERVAL_SECONDS"]),
         )
 
-    @app.post("/domains")
+    @app.get("/subdomains")
+    @login_required
+    def subdomains_page():
+        g.active_nav = "subdomains"
+        domains = db.list_domains()
+        subdomains = db.list_subdomains()
+        selected_domain_id = session.get("last_subdomain_domain_id")
+        return render_template(
+            "subdomains.html",
+            domains=domains,
+            subdomains=subdomains,
+            selected_domain_id=selected_domain_id,
+        )
+
+    @app.post("/domains/enable")
     @login_required
     def add_domain():
         root_domain = request.form.get("root_domain", "")
+        zone_id = request.form.get("zone_id", "").strip()
         try:
             normalized = sync_service.normalize_root_domain(root_domain)
-            credentials = {
-                "cloudflare_email": db.get_runtime_config()["cloudflare_email"],
-                "cloudflare_api_key": db.get_runtime_config()["cloudflare_api_key"],
-            }
-            zone_id = api_operations.resolve_zone_id(credentials, normalized)
+            if not zone_id:
+                raise ValueError("Missing zone ID for selected domain.")
             db.add_domain(normalized, zone_id)
             flash(f"Added domain {normalized}.", "success")
         except (ValueError, sqlite3.IntegrityError) as exc:
@@ -186,18 +240,20 @@ def create_app(sync_interval_seconds=300):
         domain_id = request.form.get("domain_id", "").strip()
         name = request.form.get("name", "")
         proxied = request.form.get("proxied") == "on"
+        session["last_subdomain_domain_id"] = domain_id
 
         domain = db.get_domain(int(domain_id)) if domain_id.isdigit() else None
         if not domain:
             flash("Choose a valid domain first.", "error")
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("subdomains_page"))
 
         try:
             normalized = sync_service.normalize_subdomain(name, domain["root_domain"])
             db.add_subdomain(domain["id"], normalized, proxied)
             sync_result = sync_service.run_sync_cycle()
+            fqdn = sync_service.full_hostname(normalized, domain["root_domain"])
             flash(
-                f"Added {normalized}.{domain['root_domain']}. {sync_result['summary']}",
+                f"Added {fqdn}. {sync_result['summary']}",
                 "success",
             )
         except (ValueError, sqlite3.IntegrityError) as exc:
@@ -206,7 +262,7 @@ def create_app(sync_interval_seconds=300):
             db.update_sync_status("error", "Sync failed after adding a subdomain.", str(exc))
             flash(f"Subdomain saved, but sync failed: {exc}", "error")
 
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("subdomains_page"))
 
     @app.post("/subdomains/<int:subdomain_id>/delete")
     @login_required
@@ -214,7 +270,7 @@ def create_app(sync_interval_seconds=300):
         subdomain = db.get_subdomain(subdomain_id)
         if not subdomain:
             flash("Subdomain not found.", "error")
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("subdomains_page"))
 
         try:
             sync_service.delete_managed_subdomain(subdomain)
@@ -222,7 +278,7 @@ def create_app(sync_interval_seconds=300):
         except Exception as exc:
             flash(f"Could not remove subdomain: {exc}", "error")
 
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("subdomains_page"))
 
     @app.post("/sync-now")
     @login_required
@@ -248,6 +304,39 @@ def create_app(sync_interval_seconds=300):
             flash(f"Sync interval updated to {interval} seconds.", "success")
         except ValueError as exc:
             flash(str(exc), "error")
+
+        return redirect(url_for("dashboard"))
+
+    @app.get("/records/export")
+    @login_required
+    def export_records():
+        payload = db.export_records()
+        export_timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        return Response(
+            json.dumps(payload, indent=2),
+            mimetype="application/json",
+            headers={
+                "Content-Disposition": f"attachment; filename=the-ddns-thing-records-{export_timestamp}.json"
+            },
+        )
+
+    @app.post("/records/import")
+    @login_required
+    def import_records():
+        upload = request.files.get("records_file")
+        if not upload or not upload.filename:
+            flash("Choose a JSON export file to import.", "error")
+            return redirect(url_for("dashboard"))
+
+        try:
+            payload = json.load(upload.stream)
+            result = db.import_records(payload)
+            flash(
+                f"Import complete. Added {result['domains']} domains and {result['subdomains']} subdomains.",
+                "success",
+            )
+        except (ValueError, json.JSONDecodeError) as exc:
+            flash(f"Import failed: {exc}", "error")
 
         return redirect(url_for("dashboard"))
 

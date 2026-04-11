@@ -14,11 +14,16 @@ def normalize_subdomain(value, root_domain=None):
     if not normalized:
         raise ValueError("Subdomain is required.")
 
+    if root_domain and normalized == root_domain:
+        return "@"
+
     if root_domain and normalized.endswith(f".{root_domain}"):
         normalized = normalized[: -(len(root_domain) + 1)]
+        if not normalized:
+            return "@"
 
-    if normalized == "@" or normalized == root_domain:
-        raise ValueError("Please enter only the subdomain part, not the root domain.")
+    if normalized == "@":
+        return "@"
 
     if not SUBDOMAIN_PATTERN.fullmatch(normalized):
         raise ValueError("Subdomains may only contain letters, numbers, hyphens, and dots.")
@@ -36,6 +41,8 @@ def normalize_root_domain(value):
 
 
 def full_hostname(subdomain_name, root_domain):
+    if subdomain_name == "@":
+        return root_domain
     return f"{subdomain_name}.{root_domain}"
 
 
@@ -99,6 +106,7 @@ def run_sync_cycle():
                     bool(subdomain["proxied"]),
                 )
                 db.update_subdomain_record(subdomain["id"], payload["result"]["id"])
+                db.record_subdomain_ip(subdomain["id"], public_ip)
                 created += 1
                 continue
 
@@ -115,8 +123,10 @@ def run_sync_cycle():
                     public_ip,
                     bool(subdomain["proxied"]),
                 )
+                db.record_subdomain_ip(subdomain["id"], public_ip, record.get("content"))
                 updated += 1
             else:
+                db.record_subdomain_ip(subdomain["id"], public_ip)
                 unchanged += 1
 
     summary = (

@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% block title %}Manage Subdomains{% endblock %}
+{% block content %}
+<section class="stack">
+    <article class="panel">
+        <div class="section-header">
+            <h2>Add Subdomain</h2>
+            <p>Records under enabled domains</p>
+        </div>
+        <form method="post" action="{{ url_for('add_subdomain') }}" class="form-grid">
+            <label>
+                <span>Domain</span>
+                <select name="domain_id" required>
+                    <option value="">Choose a domain</option>
+                    {% for domain in domains %}
+                    <option value="{{ domain['id'] }}" {{ 'selected' if selected_domain_id and selected_domain_id|string == domain['id']|string else '' }}>{{ domain['root_domain'] }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Subdomain or root</span>
+                <input type="text" name="name" placeholder="app or @" required>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" name="proxied">
+                <span>Proxy through Cloudflare</span>
+            </label>
+            <button type="submit">Add subdomain</button>
+        </form>
+    </article>
+
+    <article class="panel">
+        <div class="section-header">
+            <h2>Managed Subdomains</h2>
+            <p>{{ subdomains|length }} configured</p>
+        </div>
+        {% if subdomains %}
+        <div class="table-toolbar">
+            <div class="table-size-control">
+                <label class="tiny-toggle">
+                    <input type="checkbox" id="table-size-small-toggle">
+                    <span>Smaller table</span>
+                </label>
+            </div>
+        </div>
+        <div class="filters-grid">
+            <label>
+                <span>Filter by name</span>
+                <input type="text" id="filter-name" placeholder="app or root">
+            </label>
+            <label>
+                <span>Filter by domain</span>
+                <select id="filter-domain">
+                    <option value="">All domains</option>
+                    {% for domain in domains %}
+                    <option value="{{ domain['root_domain']|lower }}">{{ domain['root_domain'] }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Filter by full record</span>
+                <input type="text" id="filter-full-record" placeholder="app.example.com">
+            </label>
+        </div>
+        <div class="table-scroll medium-scroll" id="subdomains-table-wrapper">
+            <table id="subdomains-table">
+                <thead>
+                    <tr>
+                        <th>Full record</th>
+                        <th>Last IP</th>
+                        <th>Current IP</th>
+                        <th>Proxy</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for subdomain in subdomains %}
+                    {% set full_record = subdomain["root_domain"] if subdomain["name"] == "@" else subdomain["name"] ~ "." ~ subdomain["root_domain"] %}
+                    <tr
+                        data-filter-name="{{ subdomain['name']|record_display_name|lower }}"
+                        data-filter-domain="{{ subdomain['root_domain']|lower }}"
+                        data-filter-full-record="{{ full_record|lower }}"
+                    >
+                        <td>
+                            <div class="hover-anchor" data-hover-source="ip-history">
+                                <span>{{ full_record }}</span>
+                                <div class="hover-card-template">
+                                    <p class="hover-title">Recent IPs</p>
+                                    {% if subdomain["recent_ips"] %}
+                                    <ul class="hover-list">
+                                        {% for item in subdomain["recent_ips"] %}
+                                        <li>{{ item["ip_address"] }} <span>{{ item["observed_at"]|friendly_datetime }}</span></li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% else %}
+                                    <p class="hint">No IP history yet.</p>
+                                    {% endif %}
+                                    <p class="hover-meta">Record ID: <span class="mono">{{ subdomain["record_id"] or "Pending" }}</span></p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="mono">{{ subdomain["last_ip"]|display_ip }}</td>
+                        <td class="mono">{{ subdomain["current_ip"]|display_ip }}</td>
+                        <td>{{ "Yes" if subdomain["proxied"] else "No" }}</td>
+                        <td>
+                            <form method="post" action="{{ url_for('delete_subdomain', subdomain_id=subdomain['id']) }}">
+                                <button type="submit" class="danger">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="hint" id="subdomains-empty-filter" hidden>No subdomains match the current filters.</p>
+        {% else %}
+        <p class="hint">No subdomains yet. Add one above and the app will create the DNS record on the next sync.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+    (function () {
+        const floatingCard = document.createElement("div");
+        floatingCard.className = "floating-hover-card";
+        document.body.appendChild(floatingCard);
+
+        let activeAnchor = null;
+
+        function hideCard() {
+            floatingCard.classList.remove("visible");
+            floatingCard.innerHTML = "";
+            activeAnchor = null;
+        }
+
+        function positionCard(anchor) {
+            const rect = anchor.getBoundingClientRect();
+            const cardWidth = 320;
+            const gap = 12;
+            const left = Math.min(
+                window.innerWidth - cardWidth - 16,
+                Math.max(16, rect.left + window.scrollX)
+            );
+            const top = rect.bottom + window.scrollY + gap;
+            floatingCard.style.left = `${left}px`;
+            floatingCard.style.top = `${top}px`;
+        }
+
+        document.querySelectorAll("[data-hover-source='ip-history']").forEach((anchor) => {
+            anchor.addEventListener("mouseenter", function () {
+                const template = anchor.querySelector(".hover-card-template");
+                if (!template) {
+                    return;
+                }
+                activeAnchor = anchor;
+                floatingCard.innerHTML = template.innerHTML;
+                floatingCard.classList.add("visible");
+                positionCard(anchor);
+            });
+
+            anchor.addEventListener("mouseleave", function () {
+                window.setTimeout(function () {
+                    if (!floatingCard.matches(":hover")) {
+                        hideCard();
+                    }
+                }, 30);
+            });
+        });
+
+        floatingCard.addEventListener("mouseleave", hideCard);
+
+        window.addEventListener("scroll", function () {
+            if (activeAnchor) {
+                positionCard(activeAnchor);
+            }
+        }, true);
+
+        window.addEventListener("resize", function () {
+            if (activeAnchor) {
+                positionCard(activeAnchor);
+            }
+        });
+    }());
+
+    (function () {
+        const table = document.getElementById("subdomains-table");
+        if (!table) {
+            return;
+        }
+
+        const rows = Array.from(table.querySelectorAll("tbody tr"));
+        const emptyMessage = document.getElementById("subdomains-empty-filter");
+        const filters = {
+            name: document.getElementById("filter-name"),
+            domain: document.getElementById("filter-domain"),
+            fullRecord: document.getElementById("filter-full-record"),
+        };
+        const tableWrapper = document.getElementById("subdomains-table-wrapper");
+        const sizeToggle = document.getElementById("table-size-small-toggle");
+        const storageKey = "the-ddns-thing-subdomains-font-size";
+
+        function normalize(value) {
+            return (value || "").trim().toLowerCase();
+        }
+
+        function applyFilters() {
+            const nameValue = normalize(filters.name.value);
+            const domainValue = normalize(filters.domain.value);
+            const fullRecordValue = normalize(filters.fullRecord.value);
+            let visibleCount = 0;
+
+            rows.forEach((row) => {
+                const matches =
+                    row.dataset.filterName.includes(nameValue) &&
+                    row.dataset.filterDomain.includes(domainValue) &&
+                    row.dataset.filterFullRecord.includes(fullRecordValue);
+
+                row.hidden = !matches;
+                if (matches) {
+                    visibleCount += 1;
+                }
+            });
+
+            emptyMessage.hidden = visibleCount !== 0;
+        }
+
+        Object.values(filters).forEach((input) => {
+            input.addEventListener("input", applyFilters);
+        });
+
+        function applyFontSize(size) {
+            tableWrapper.style.setProperty("--subdomains-table-font-size", `${size}px`);
+            sizeToggle.checked = Number(size) === 12;
+        }
+
+        const savedSize = window.localStorage.getItem(storageKey);
+        const initialSize = savedSize || "14";
+        applyFontSize(initialSize);
+
+        sizeToggle.addEventListener("change", function () {
+            const size = sizeToggle.checked ? 12 : 14;
+            applyFontSize(size);
+            window.localStorage.setItem(storageKey, String(size));
+        });
+    }());
+</script>
+{% endblock %}

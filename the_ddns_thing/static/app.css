@@ -18,6 +18,10 @@
     box-sizing: border-box;
 }
 
+html {
+    scrollbar-gutter: stable;
+}
+
 body {
     margin: 0;
     font-family: "Gill Sans", "Trebuchet MS", sans-serif;
@@ -33,7 +37,13 @@ body {
     margin: 32px auto 48px;
 }
 
+.stack {
+    display: grid;
+    gap: 20px;
+}
+
 .topbar,
+.page-nav,
 .section-header,
 .input-row,
 .meta div,
@@ -48,6 +58,36 @@ table td:last-child form {
     gap: 16px;
 }
 
+.page-nav {
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 8px;
+    border: 1px solid rgba(44, 58, 83, 0.65);
+    border-radius: 999px;
+    background: rgba(17, 24, 39, 0.72);
+    width: fit-content;
+}
+
+.page-nav a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    border-radius: 999px;
+    color: var(--muted);
+    text-decoration: none;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.page-nav a.active {
+    background: linear-gradient(180deg, rgba(36, 50, 73, 0.96) 0%, rgba(28, 38, 56, 0.96) 100%);
+    color: var(--text);
+}
+
+.page-nav a:hover {
+    color: var(--text);
+}
+
 .eyebrow {
     margin: 0 0 6px;
     text-transform: uppercase;
@@ -58,6 +98,7 @@ table td:last-child form {
 
 h1,
 h2,
+h3,
 p {
     margin-top: 0;
 }
@@ -72,6 +113,14 @@ h1 {
     grid-template-columns: 1.1fr 1fr;
     gap: 20px;
     margin-bottom: 20px;
+}
+
+.top-cards {
+    align-items: stretch;
+}
+
+.top-cards .panel {
+    height: 100%;
 }
 
 .panel {
@@ -101,13 +150,137 @@ td {
     gap: 14px;
 }
 
-.compact-form {
-    margin-top: 16px;
+.filters-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.table-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 14px;
+}
+
+.table-size-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+}
+
+.tiny-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
+.tiny-toggle input {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+}
+
+.filters-grid label {
+    display: grid;
+    gap: 8px;
 }
 
 .form-grid label {
     display: grid;
     gap: 8px;
+}
+
+.inline-form {
+    display: flex;
+    align-items: end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.inline-form label {
+    min-width: min(100%, 260px);
+}
+
+.action-row {
+    display: flex;
+    gap: 14px;
+    align-items: end;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+.transfer-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 6px;
+}
+
+.transfer-card {
+    display: grid;
+    gap: 12px;
+    padding: 18px;
+    border: 1px solid rgba(44, 58, 83, 0.75);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(18, 27, 43, 0.82) 0%, rgba(12, 19, 33, 0.82) 100%);
+}
+
+.transfer-kicker {
+    margin-bottom: 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.transfer-card h3 {
+    margin-bottom: 0;
+    font-size: 1.05rem;
+}
+
+.transfer-form {
+    display: grid;
+    gap: 12px;
+}
+
+.file-picker {
+    display: grid;
+    gap: 10px;
+}
+
+.file-picker input[type="file"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+.file-picker-label,
+.file-picker-name {
+    display: block;
+}
+
+.file-picker-label {
+    width: fit-content;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(44, 58, 83, 0.85);
+    background: linear-gradient(180deg, rgba(36, 50, 73, 0.96) 0%, rgba(28, 38, 56, 0.96) 100%);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.file-picker-name {
+    color: var(--muted);
+    font-size: 0.92rem;
 }
 
 .full {
@@ -221,15 +394,95 @@ table {
     border-collapse: collapse;
 }
 
+.table-scroll {
+    --subdomains-table-font-size: 14px;
+    overflow-x: auto;
+    overflow-y: visible;
+    border: 1px solid rgba(44, 58, 83, 0.55);
+    border-radius: 14px;
+    background: rgba(10, 15, 28, 0.26);
+}
+
+.medium-scroll {
+    max-height: 440px;
+}
+
 th,
 td {
     text-align: left;
     padding: 14px 10px;
     border-bottom: 1px solid rgba(44, 58, 83, 0.9);
+    white-space: nowrap;
+    font-size: var(--subdomains-table-font-size);
+}
+
+td:first-child,
+th:first-child {
+    white-space: normal;
 }
 
 .mono {
     font-family: "Courier New", monospace;
+}
+
+.hover-anchor {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.hover-anchor > span {
+    color: var(--text);
+}
+
+.hover-card-template {
+    display: none;
+}
+
+.floating-hover-card {
+    position: absolute;
+    z-index: 9999;
+    width: 320px;
+    padding: 14px;
+    border: 1px solid rgba(44, 58, 83, 0.9);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(16, 24, 39, 0.98) 0%, rgba(10, 15, 28, 0.98) 100%);
+    box-shadow: 0 20px 40px rgba(2, 6, 23, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(4px);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.floating-hover-card.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.hover-title,
+.hover-meta {
+    margin-bottom: 10px;
+}
+
+.hover-list {
+    list-style: none;
+    margin: 0 0 10px;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+}
+
+.hover-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--text);
+}
+
+.hover-list li span {
+    color: var(--muted);
+    text-align: right;
 }
 
 .meta dd#next-sync-countdown {
@@ -262,14 +515,33 @@ button:hover {
         grid-template-columns: 1fr;
     }
 
+    .filters-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .transfer-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .table-toolbar,
+    .table-size-control {
+        justify-content: flex-start;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
     .topbar,
+    .page-nav,
     .section-header,
     .input-row,
-    .meta div {
+    .meta div,
+    .action-row,
+    .inline-form {
         align-items: flex-start;
         flex-direction: column;
     }
 
+    .table-scroll,
     table,
     thead,
     tbody,

@@ -58,6 +58,24 @@ def verify_credentials(credentials):
     return True
 
 
+def list_zones(credentials):
+    page = 1
+    zones = []
+
+    while True:
+        url = f"https://api.cloudflare.com/client/v4/zones?status=active&per_page=50&page={page}"
+        payload = _request("GET", url, credentials)
+        zones.extend(payload.get("result", []))
+
+        result_info = payload.get("result_info", {})
+        total_pages = result_info.get("total_pages", 1)
+        if page >= total_pages:
+            break
+        page += 1
+
+    return zones
+
+
 def list_dns_records(credentials, zone_id):
     url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records?type=A"
     return _request("GET", url, credentials)
