@@ -1,12 +1,16 @@
 import os
 import json
 import sqlite3
+import base64
+import hashlib
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
+from cryptography.fernet import Fernet, InvalidToken
 from werkzeug.security import check_password_hash, generate_password_hash
 
 DEFAULT_DATA_DIR = os.getcwd()
+SECRET_PREFIX = "enc:v1:"
 
 
 def get_data_dir():
@@ -222,6 +226,41 @@ def save_secret_key(secret_key):
         handle.write(secret_key)
 
 
+def _get_secret_cipher():
+    secret_key = load_secret_key()
+    if not secret_key:
+        raise RuntimeError("Application secret key is not initialized.")
+
+    derived_key = hashlib.sha256(secret_key.encode("utf-8")).digest()
+    fernet_key = base64.urlsafe_b64encode(derived_key)
+    return Fernet(fernet_key)
+
+
+def _encrypt_secret_value(value):
+    if value in (None, ""):
+        return value
+
+    cipher = _get_secret_cipher()
+    token = cipher.encrypt(value.encode("utf-8")).decode("utf-8")
+    return f"{SECRET_PREFIX}{token}"
+
+
+def _decrypt_secret_value(value):
+    if value in (None, ""):
+        return value, False
+
+    if not value.startswith(SECRET_PREFIX):
+        return value, False
+
+    cipher = _get_secret_cipher()
+    token = value[len(SECRET_PREFIX) :]
+    try:
+        decrypted = cipher.decrypt(token.encode("utf-8")).decode("utf-8")
+    except InvalidToken as exc:
+        raise ValueError("Stored secret could not be decrypted.") from exc
+    return decrypted, True
+
+
 def get_setting(key, default=None):
     with get_connection() as connection:
         row = connection.execute(
@@ -243,6 +282,21 @@ def set_setting(key, value):
         )
 
 
+def get_secret_setting(key, default=None):
+    raw_value = get_setting(key, default)
+    if raw_value in (None, default):
+        return raw_value
+
+    decrypted_value, is_encrypted = _decrypt_secret_value(raw_value)
+    if not is_encrypted and decrypted_value not in (None, ""):
+        set_secret_setting(key, decrypted_value)
+    return decrypted_value
+
+
+def set_secret_setting(key, value):
+    set_setting(key, _encrypt_secret_value(value))
+
+
 def get_settings(keys):
     with get_connection() as connection:
         rows = connection.execute(
@@ -254,8 +308,10 @@ def get_settings(keys):
 
 
 def is_setup_complete():
-    required_keys = ["cloudflare_email", "cloudflare_api_key"]
-    values = get_settings(required_keys)
+    values = {
+        "cloudflare_email": get_setting("cloudflare_email"),
+        "cloudflare_api_key": get_secret_setting("cloudflare_api_key"),
+    }
     if not all(values.values()):
         return False
 
@@ -292,7 +348,13 @@ def get_admin_user_by_username(username):
             (username,),
         ).fetchone()
 
-    return dict(row) if row else None
+    user = dict(row) if row else None
+    if user and user.get("totp_secret"):
+        decrypted_secret, is_encrypted = _decrypt_secret_value(user["totp_secret"])
+        user["totp_secret"] = decrypted_secret
+        if not is_encrypted and decrypted_secret:
+            set_admin_totp(user["id"], secret=decrypted_secret, enabled=user["totp_enabled"])
+    return user
 
 
 def get_admin_user(user_id):
@@ -314,7 +376,13 @@ def get_admin_totp_config(user_id):
             "SELECT id, username, totp_secret, totp_enabled FROM admin_users WHERE id = ?",
             (user_id,),
         ).fetchone()
-    return dict(row) if row else None
+    user = dict(row) if row else None
+    if user and user.get("totp_secret"):
+        decrypted_secret, is_encrypted = _decrypt_secret_value(user["totp_secret"])
+        user["totp_secret"] = decrypted_secret
+        if not is_encrypted and decrypted_secret:
+            set_admin_totp(user["id"], secret=decrypted_secret, enabled=user["totp_enabled"])
+    return user
 
 
 def set_admin_totp(user_id, *, secret, enabled):
@@ -325,7 +393,7 @@ def set_admin_totp(user_id, *, secret, enabled):
             SET totp_secret = ?, totp_enabled = ?
             WHERE id = ?
             """,
-            (secret, int(bool(enabled)), user_id),
+            (_encrypt_secret_value(secret), int(bool(enabled)), user_id),
         )
 
 
@@ -352,7 +420,7 @@ def bootstrap_application(*, cloudflare_email, cloudflare_api_key, admin_usernam
             """,
             [
                 ("cloudflare_email", cloudflare_email),
-                ("cloudflare_api_key", cloudflare_api_key),
+                ("cloudflare_api_key", _encrypt_secret_value(cloudflare_api_key)),
                 ("last_sync_status", "never"),
                 ("last_sync_summary", "No sync has run yet."),
                 ("last_sync_error", ""),
@@ -784,10 +852,9 @@ def increment_setting(key, amount=1):
 
 
 def get_runtime_config():
-    return get_settings(
+    values = get_settings(
         [
             "cloudflare_email",
-            "cloudflare_api_key",
             "app_created_at",
             "sync_interval_seconds",
             "sync_runs_total",
@@ -800,6 +867,8 @@ def get_runtime_config():
             "last_sync_at",
         ]
     )
+    values["cloudflare_api_key"] = get_secret_setting("cloudflare_api_key")
+    return values
 
 
 def get_sync_interval_seconds(default=300):

@@ -404,12 +404,16 @@ def create_app(sync_interval_seconds=300):
         try:
             payload = json.load(upload.stream)
             result = db.import_records(payload)
+            sync_result = sync_service.run_sync_cycle()
             flash(
-                f"Import complete. Added {result['domains']} domains and {result['subdomains']} subdomains.",
+                f"Import complete. Added {result['domains']} domains and {result['subdomains']} subdomains. {sync_result['summary']}",
                 "success",
             )
         except (ValueError, json.JSONDecodeError) as exc:
             flash(f"Import failed: {exc}", "error")
+        except Exception as exc:
+            db.update_sync_status("error", "Sync failed after importing records.", str(exc))
+            flash(f"Import completed, but sync failed: {exc}", "error")
 
         return redirect(url_for("dashboard"))
 
