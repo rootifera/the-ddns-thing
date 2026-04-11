@@ -46,6 +46,21 @@ body {
     gap: 20px;
 }
 
+.site-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 28px;
+    padding: 18px 6px 0;
+    border-top: 1px solid rgba(44, 58, 83, 0.6);
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+
+.site-footer p {
+    margin-bottom: 0;
+}
+
 .topbar,
 .page-nav,
 .section-header,
@@ -596,6 +611,15 @@ th:first-child {
     color: var(--text);
 }
 
+.hover-anchor > a {
+    color: var(--text);
+    text-decoration: none;
+}
+
+.hover-anchor > a:hover {
+    text-decoration: underline;
+}
+
 .hover-card-template {
     display: none;
 }
@@ -700,6 +724,7 @@ button:hover {
     .page-nav,
     .section-header,
     .topbar-actions,
+    .site-footer,
     .input-row,
     .meta div,
     .action-row,

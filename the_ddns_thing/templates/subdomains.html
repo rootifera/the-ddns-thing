@@ -128,7 +128,7 @@
                     >
                         <td>
                             <div class="hover-anchor" data-hover-source="ip-history">
-                                <span>{{ full_record }}</span>
+                                <a href="https://{{ full_record }}" target="_blank" rel="noopener noreferrer">{{ full_record }}</a>
                                 <div class="hover-card-template">
                                     <p class="hover-title">Recent IPs</p>
                                     {% if subdomain["recent_ips"] %}
