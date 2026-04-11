@@ -8,6 +8,12 @@
             <p>Records under enabled domains</p>
         </div>
         <form method="post" action="{{ url_for('add_subdomain') }}" class="form-grid">
+            <label class="tiny-toggle">
+                <input type="checkbox" id="bulk-mode-toggle" name="bulk_mode">
+                <span>Bulk add</span>
+            </label>
+
+            <div id="single-add-fields" class="form-section">
             <label>
                 <span>Domain</span>
                 <select name="domain_id" required>
@@ -25,6 +31,25 @@
                 <input type="checkbox" name="proxied">
                 <span>Proxy through Cloudflare</span>
             </label>
+            </div>
+
+            <div id="bulk-add-fields" class="form-section" hidden>
+                <label>
+                    <span>Bulk entries</span>
+                    <textarea
+                        name="bulk_entries"
+                        id="bulk-entries"
+                        rows="8"
+                        placeholder="test.example.com&#10;test3.example.com,p&#10;test5.example.com&#10;test23.example.com"
+                    ></textarea>
+                </label>
+                <label class="checkbox">
+                    <input type="checkbox" name="bulk_proxied">
+                    <span>All Proxy</span>
+                </label>
+                <p class="hint">Use one full record per line. If All Proxy is off, add <span class="mono">,p</span> at the end of a line to proxy just that record, for example <span class="mono">test3.example.com,p</span>.</p>
+            </div>
+
             <button type="submit">Add subdomain</button>
         </form>
     </article>
@@ -66,10 +91,26 @@
             <table id="subdomains-table">
                 <thead>
                     <tr>
-                        <th>Full record</th>
-                        <th>Last IP</th>
-                        <th>Current IP</th>
-                        <th>Proxy</th>
+                        <th>
+                            <button type="button" class="sort-button" data-sort-key="full-record">
+                                Full record <span class="sort-indicator" data-sort-indicator-for="full-record">A-Z</span>
+                            </button>
+                        </th>
+                        <th>
+                            <button type="button" class="sort-button" data-sort-key="last-ip">
+                                Last IP <span class="sort-indicator" data-sort-indicator-for="last-ip"></span>
+                            </button>
+                        </th>
+                        <th>
+                            <button type="button" class="sort-button" data-sort-key="current-ip">
+                                Current IP <span class="sort-indicator" data-sort-indicator-for="current-ip"></span>
+                            </button>
+                        </th>
+                        <th>
+                            <button type="button" class="sort-button" data-sort-key="proxy">
+                                Proxy <span class="sort-indicator" data-sort-indicator-for="proxy"></span>
+                            </button>
+                        </th>
                         <th></th>
                     </tr>
                 </thead>
@@ -80,6 +121,10 @@
                         data-filter-name="{{ subdomain['name']|record_display_name|lower }}"
                         data-filter-domain="{{ subdomain['root_domain']|lower }}"
                         data-filter-full-record="{{ full_record|lower }}"
+                        data-sort-full-record="{{ full_record|lower }}"
+                        data-sort-last-ip="{{ subdomain['last_ip'] or '' }}"
+                        data-sort-current-ip="{{ subdomain['current_ip'] or '' }}"
+                        data-sort-proxy="{{ '1' if subdomain['proxied'] else '0' }}"
                     >
                         <td>
                             <div class="hover-anchor" data-hover-source="ip-history">
@@ -121,6 +166,38 @@
 {% endblock %}
 {% block scripts %}
 <script>
+    (function () {
+        const bulkToggle = document.getElementById("bulk-mode-toggle");
+        const singleFields = document.getElementById("single-add-fields");
+        const bulkFields = document.getElementById("bulk-add-fields");
+        const domainSelect = document.querySelector("select[name='domain_id']");
+        const singleNameInput = document.querySelector("input[name='name']");
+        const bulkEntriesInput = document.getElementById("bulk-entries");
+
+        if (!bulkToggle || !singleFields || !bulkFields) {
+            return;
+        }
+
+        function applyBulkMode() {
+            const bulkMode = bulkToggle.checked;
+            singleFields.hidden = bulkMode;
+            bulkFields.hidden = !bulkMode;
+
+            if (domainSelect) {
+                domainSelect.required = !bulkMode;
+            }
+            if (singleNameInput) {
+                singleNameInput.required = !bulkMode;
+            }
+            if (bulkEntriesInput) {
+                bulkEntriesInput.required = bulkMode;
+            }
+        }
+
+        bulkToggle.addEventListener("change", applyBulkMode);
+        applyBulkMode();
+    }());
+
     (function () {
         const floatingCard = document.createElement("div");
         floatingCard.className = "floating-hover-card";
@@ -189,7 +266,8 @@
             return;
         }
 
-        const rows = Array.from(table.querySelectorAll("tbody tr"));
+        const tbody = table.querySelector("tbody");
+        const rows = Array.from(tbody.querySelectorAll("tr"));
         const emptyMessage = document.getElementById("subdomains-empty-filter");
         const filters = {
             name: document.getElementById("filter-name"),
@@ -198,10 +276,83 @@
         };
         const tableWrapper = document.getElementById("subdomains-table-wrapper");
         const sizeToggle = document.getElementById("table-size-small-toggle");
+        const sortButtons = Array.from(document.querySelectorAll("[data-sort-key]"));
+        const sortIndicators = Array.from(document.querySelectorAll("[data-sort-indicator-for]"));
         const storageKey = "the-ddns-thing-subdomains-font-size";
+        let sortState = {
+            key: "full-record",
+            direction: "asc",
+        };
 
         function normalize(value) {
             return (value || "").trim().toLowerCase();
+        }
+
+        function ipToSortableValue(value) {
+            const normalized = (value || "").trim();
+            if (!normalized || normalized.toLowerCase() === "unknown") {
+                return Number.POSITIVE_INFINITY;
+            }
+
+            const parts = normalized.split(".");
+            if (parts.length !== 4) {
+                return Number.POSITIVE_INFINITY;
+            }
+
+            let result = 0;
+            for (const part of parts) {
+                const octet = Number.parseInt(part, 10);
+                if (Number.isNaN(octet) || octet < 0 || octet > 255) {
+                    return Number.POSITIVE_INFINITY;
+                }
+                result = (result * 256) + octet;
+            }
+            return result;
+        }
+
+        function compareRows(leftRow, rightRow) {
+            const directionFactor = sortState.direction === "asc" ? 1 : -1;
+
+            if (sortState.key === "full-record") {
+                return directionFactor * leftRow.dataset.sortFullRecord.localeCompare(rightRow.dataset.sortFullRecord);
+            }
+
+            if (sortState.key === "last-ip") {
+                return directionFactor * (ipToSortableValue(leftRow.dataset.sortLastIp) - ipToSortableValue(rightRow.dataset.sortLastIp));
+            }
+
+            if (sortState.key === "current-ip") {
+                return directionFactor * (ipToSortableValue(leftRow.dataset.sortCurrentIp) - ipToSortableValue(rightRow.dataset.sortCurrentIp));
+            }
+
+            if (sortState.key === "proxy") {
+                return directionFactor * (Number.parseInt(leftRow.dataset.sortProxy, 10) - Number.parseInt(rightRow.dataset.sortProxy, 10));
+            }
+
+            return 0;
+        }
+
+        function renderSortIndicators() {
+            sortIndicators.forEach((indicator) => {
+                const sortKey = indicator.dataset.sortIndicatorFor;
+                if (sortKey !== sortState.key) {
+                    indicator.textContent = "";
+                    return;
+                }
+
+                if (sortKey === "full-record") {
+                    indicator.textContent = sortState.direction === "asc" ? "A-Z" : "Z-A";
+                    return;
+                }
+
+                indicator.textContent = sortState.direction === "asc" ? "↑" : "↓";
+            });
+        }
+
+        function applySorting() {
+            rows.sort(compareRows);
+            rows.forEach((row) => tbody.appendChild(row));
+            renderSortIndicators();
         }
 
         function applyFilters() {
@@ -243,6 +394,22 @@
             applyFontSize(size);
             window.localStorage.setItem(storageKey, String(size));
         });
+
+        sortButtons.forEach((button) => {
+            button.addEventListener("click", function () {
+                const clickedKey = button.dataset.sortKey;
+                if (sortState.key === clickedKey) {
+                    sortState.direction = sortState.direction === "asc" ? "desc" : "asc";
+                } else {
+                    sortState.key = clickedKey;
+                    sortState.direction = "asc";
+                }
+                applySorting();
+                applyFilters();
+            });
+        });
+
+        applySorting();
     }());
 </script>
 {% endblock %}

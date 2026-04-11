@@ -18,6 +18,10 @@
     box-sizing: border-box;
 }
 
+[hidden] {
+    display: none !important;
+}
+
 html {
     scrollbar-gutter: stable;
 }
@@ -183,6 +187,11 @@ td {
     gap: 14px;
 }
 
+.form-section {
+    display: grid;
+    gap: 14px;
+}
+
 .filters-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -334,6 +343,18 @@ input {
     font: inherit;
 }
 
+textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: rgba(11, 18, 32, 0.78);
+    color: var(--text);
+    font: inherit;
+    resize: vertical;
+    min-height: 180px;
+}
+
 select {
     width: 100%;
     padding: 12px 14px;
@@ -451,6 +472,31 @@ td {
     border-bottom: 1px solid rgba(44, 58, 83, 0.9);
     white-space: nowrap;
     font-size: var(--subdomains-table-font-size);
+}
+
+.sort-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.sort-button:hover {
+    filter: none;
+    color: var(--text);
+}
+
+.sort-indicator {
+    min-width: 1.8em;
+    color: var(--muted);
+    font-size: 0.84em;
+    text-align: right;
 }
 
 td:first-child,
@@ -610,6 +656,7 @@ th:first-child {
 }
 
 input:focus,
+textarea:focus,
 select:focus {
     outline: 2px solid rgba(45, 212, 191, 0.25);
     outline-offset: 1px;

@@ -13,6 +13,7 @@ It is designed to be simple to self-host: one admin account, one Cloudflare acco
 - Automatically syncs managed records to the current public IPv4 address
 - Lets you enable domains directly from your Cloudflare zone list
 - Lets you add and remove managed records from the UI
+- Supports single-record and bulk subdomain entry
 - Shows sync status, recent IP information, and basic runtime statistics
 - Supports import/export of managed domains and records
 - Supports TOTP 2FA for the admin account
@@ -29,7 +30,7 @@ On first launch, the app opens a setup screen in the browser and asks for:
 After setup, you can:
 
 1. Enable domains from the Cloudflare zone list
-2. Add DDNS records for those domains
+2. Add DDNS records for those domains, one at a time or in bulk
 3. Let the background sync worker keep them updated
 
 ## Main Features
@@ -42,7 +43,11 @@ After setup, you can:
   - Import/export tools
 - Dedicated subdomain management page with:
   - Add/remove records
+  - Bulk add using one full hostname per line
+  - Optional per-line `,p` suffix for Cloudflare proxy mode
+  - `All Proxy` bulk mode
   - Filtering by name, domain, or full record
+  - Sorting by full record, last IP, current IP, and proxy status
   - Current IP and previous IP display
   - Recent IP hover history
 - Account page with:
@@ -138,6 +143,8 @@ The import/export tools back up and restore:
 - enabled domains
 - managed DDNS records
 
+Imported records are synced immediately after import.
+
 They do not include:
 
 - admin credentials
@@ -159,6 +166,8 @@ They do not include:
 - Root/apex records are supported
 - Cloudflare record IDs are managed internally and not exposed as a primary UI concept
 - The sync interval can be changed from the dashboard
+- Bulk add accepts one full record per line, for example `app.example.com`
+- In bulk add mode, append `,p` to a line such as `app.example.com,p` to proxy just that record when `All Proxy` is off
 
 ## Development
 

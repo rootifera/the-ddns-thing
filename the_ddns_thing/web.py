@@ -115,6 +115,17 @@ def create_app(sync_interval_seconds=300):
         encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
         return f"data:image/png;base64,{encoded}"
 
+    def match_domain_for_hostname(hostname, domains):
+        normalized_hostname = hostname.strip().lower().rstrip(".")
+        if not normalized_hostname:
+            return None
+
+        for domain in sorted(domains, key=lambda item: len(item["root_domain"]), reverse=True):
+            root_domain = domain["root_domain"]
+            if normalized_hostname == root_domain or normalized_hostname.endswith(f".{root_domain}"):
+                return domain
+        return None
+
     @app.route("/setup", methods=["GET", "POST"])
     def setup():
         if db.is_setup_complete():
@@ -313,7 +324,52 @@ def create_app(sync_interval_seconds=300):
         domain_id = request.form.get("domain_id", "").strip()
         name = request.form.get("name", "")
         proxied = request.form.get("proxied") == "on"
+        bulk_mode = request.form.get("bulk_mode") == "on"
+        bulk_entries = request.form.get("bulk_entries", "")
+        bulk_proxied = request.form.get("bulk_proxied") == "on"
         session["last_subdomain_domain_id"] = domain_id
+
+        if bulk_mode:
+            domains = db.list_domains()
+            added_count = 0
+
+            for raw_line in bulk_entries.splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+
+                line_parts = [part.strip() for part in line.split(",", 1)]
+                hostname = line_parts[0].lower().rstrip(".")
+                line_proxied = bulk_proxied or (
+                    len(line_parts) > 1 and line_parts[1].lower() == "p"
+                )
+
+                domain = match_domain_for_hostname(hostname, domains)
+                if not domain:
+                    continue
+
+                try:
+                    normalized = sync_service.normalize_subdomain(hostname, domain["root_domain"])
+                    db.add_subdomain(domain["id"], normalized, line_proxied)
+                    added_count += 1
+                except (ValueError, sqlite3.IntegrityError):
+                    continue
+
+            if added_count == 0:
+                flash("No valid subdomains were added from the bulk list.", "error")
+                return redirect(url_for("subdomains_page"))
+
+            try:
+                sync_result = sync_service.run_sync_cycle()
+                flash(
+                    f"Added {added_count} subdomains. {sync_result['summary']}",
+                    "success",
+                )
+            except Exception as exc:
+                db.update_sync_status("error", "Sync failed after bulk subdomain add.", str(exc))
+                flash(f"Added {added_count} subdomains, but sync failed: {exc}", "error")
+
+            return redirect(url_for("subdomains_page"))
 
         domain = db.get_domain(int(domain_id)) if domain_id.isdigit() else None
         if not domain:
