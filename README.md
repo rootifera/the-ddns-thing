@@ -1,23 +1,55 @@
 # The DDNS Thing
 
-`the-ddns-thing` is a small web UI for managing dynamic DNS subdomains on Cloudflare.
+`the-ddns-thing` is a small web UI for managing Cloudflare-based dynamic DNS.
 
-Instead of editing flat config files, the app now stores its managed state in SQLite and walks you through first-run setup in the browser.
+It is designed to be simple to self-host: one admin account, one Cloudflare account, multiple domains, and a clean browser-based workflow instead of hand-editing config files.
 
 ## What It Does
 
-- Creates a local SQLite database in the app working directory
-- Shows a first-run setup form for:
-  - admin username
-  - admin password
-  - Cloudflare email
-  - Cloudflare global API key
-- Lets you add and remove multiple managed root domains from the web dashboard
-- Looks up each Cloudflare zone automatically when you add a domain
-- Lets you add and remove managed subdomains under any configured domain
-- Runs a background sync loop that keeps those `A` records pointed at the machine's current public IPv4 address
+- Runs a small web app for managing DDNS records
+- Stores app state in SQLite
+- Supports multiple Cloudflare root domains under one account
+- Supports root records and subdomains for IPv4 `A` record DDNS
+- Automatically syncs managed records to the current public IPv4 address
+- Lets you enable domains directly from your Cloudflare zone list
+- Lets you add and remove managed records from the UI
+- Shows sync status, recent IP information, and basic runtime statistics
+- Supports import/export of managed domains and records
+- Supports TOTP 2FA for the admin account
 
-## Run It
+## First-Run Flow
+
+On first launch, the app opens a setup screen in the browser and asks for:
+
+- Admin username
+- Admin password
+- Cloudflare email
+- Cloudflare global API key
+
+After setup, you can:
+
+1. Enable domains from the Cloudflare zone list
+2. Add DDNS records for those domains
+3. Let the background sync worker keep them updated
+
+## Main Features
+
+- Dashboard with:
+  - Sync status
+  - Runtime statistics
+  - Available Cloudflare domains
+  - Enabled domains
+  - Import/export tools
+- Dedicated subdomain management page with:
+  - Add/remove records
+  - Filtering by name, domain, or full record
+  - Current IP and previous IP display
+  - Recent IP hover history
+- Account page with:
+  - TOTP 2FA setup
+  - QR code-based authenticator enrollment
+
+## Local Run
 
 Install dependencies and start the app:
 
@@ -26,83 +58,115 @@ pip install -r requirements.txt
 python -m the_ddns_thing.main
 ```
 
-Or after installing the package:
+The web UI listens on `http://127.0.0.1:10710` by default.
+
+You can override host, port, sync interval, and data directory:
 
 ```bash
-the-ddns-thing
+python -m the_ddns_thing.main \
+  --host 0.0.0.0 \
+  --port 10710 \
+  --sync-interval 300 \
+  --data-dir ./data
 ```
 
-By default the web UI starts on `http://127.0.0.1:10710`.
+## Data Storage
 
-You can override the bind address, port, and sync interval:
-
-```bash
-the-ddns-thing --host 0.0.0.0 --port 10710 --sync-interval 300
-```
-
-## Storage
-
-By default outside Docker, the application stores local data in the current working directory:
+Outside Docker, the app stores its local data in the current working directory by default:
 
 - `./the-ddns-thing.db`
 - `./secret.key`
 
-You can override that location with `THE_DDNS_THING_DATA_DIR` or `--data-dir`.
+You can change that location with either:
+
+- `THE_DDNS_THING_DATA_DIR`
+- `--data-dir`
 
 ## Docker
 
-Pull and run from Docker Hub:
+Pull the published image:
 
 ```bash
 docker pull rootifera/the-ddns-thing:latest
-docker run --rm -p 10710:10710 rootifera/the-ddns-thing:latest
 ```
 
-For persistent data with Docker, mount a dedicated data path instead of the repo:
+Run it directly:
 
 ```bash
 docker run --rm -p 10710:10710 -v ddns_data:/data rootifera/the-ddns-thing:latest
 ```
 
-Or with Compose:
+Or use Compose:
 
 ```bash
 docker compose up -d
 ```
 
-The checked-in [docker-compose.yml](/home/omur/repos/the-ddns-thing/docker-compose.yml) uses the published `rootifera/the-ddns-thing:latest` image and stores the SQLite database plus secret key in a named Docker volume mounted at `/data`.
+The included [docker-compose.yml](/home/omur/repos/the-ddns-thing/docker-compose.yml) uses:
 
-If you want to build locally instead of pulling from Docker Hub:
+- `rootifera/the-ddns-thing:latest`
+- port `10710`
+- a named Docker volume mounted at `/data`
+
+Inside the container:
+
+- app code lives in `/app`
+- SQLite database and `secret.key` live in `/data`
+
+If you want to build locally instead:
 
 ```bash
 docker build -t the-ddns-thing .
-docker run --rm -p 10710:10710 the-ddns-thing
+docker run --rm -p 10710:10710 -v ddns_data:/data the-ddns-thing
 ```
 
-The container uses `/app` for code and `/data` for persisted state. That keeps runtime data separate from the image contents and avoids leaking files from your repo into the container.
+## Configuration
 
-The database contains:
+The app currently assumes:
 
-- Cloudflare connection settings
-- the local admin account
-- managed root domains and zone IDs
-- managed subdomains
-- sync status details such as last IP and last sync result
-
-## Current Scope
-
-This version is intentionally simple:
-
+- one admin account per installation
 - one Cloudflare account per installation
 - multiple Cloudflare zones per installation
-- domains and subdomains can be added and removed
-- no edit flow yet
-- IPv4 `A` records only
+- dynamic DNS for IPv4 `A` records only
 
-## Next Good Improvements
+There is intentionally no direct “edit record” flow right now. Managed records are added or removed from the UI.
 
-- stronger authentication flows
-- HTTPS/reverse-proxy deployment guidance
-- audit history in the UI
-- better test coverage around setup, login, and sync
-- per-domain sync history and filtering
+## Import / Export
+
+The import/export tools back up and restore:
+
+- enabled domains
+- managed DDNS records
+
+They do not include:
+
+- admin credentials
+- Cloudflare API credentials
+- session secrets
+
+## Security
+
+- Admin passwords are stored as hashes
+- Optional TOTP 2FA is available from the Account page
+- TOTP setup includes a QR code for authenticator apps
+- The Docker image runs with Gunicorn instead of Flask’s development server
+
+## Notes
+
+- Root/apex records are supported
+- Cloudflare record IDs are managed internally and not exposed as a primary UI concept
+- The sync interval can be changed from the dashboard
+
+## Development
+
+If you change dependencies or templates, rebuild the Docker image before redeploying:
+
+```bash
+docker build -t rootifera/the-ddns-thing:latest .
+```
+
+For a quick Python sanity check:
+
+```bash
+python3 -m compileall the_ddns_thing
+```
