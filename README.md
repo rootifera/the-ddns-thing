@@ -148,6 +148,7 @@ They do not include:
 
 - Admin passwords are stored as hashes
 - Cloudflare API credentials are encrypted at rest in the SQLite database
+- The Cloudflare API key is not hashed, because the app must decrypt and use the real key for Cloudflare API requests
 - Stored TOTP secrets are encrypted at rest
 - Optional TOTP 2FA is available from the Account page
 - TOTP setup includes a QR code for authenticator apps
