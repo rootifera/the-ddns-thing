@@ -77,64 +77,78 @@ def run_sync_cycle():
     updated = 0
     unchanged = 0
     adopted = 0
+    errors = []
 
     for domain in domains:
         domain_subdomains = subdomains_by_domain.get(domain["id"], [])
         if not domain_subdomains:
             continue
 
-        dns_records = api_operations.list_dns_records(credentials, domain["zone_id"]).get("result", [])
+        try:
+            dns_records = api_operations.list_dns_records(credentials, domain["zone_id"]).get("result", [])
+        except Exception as exc:
+            errors.append(f"{domain['root_domain']}: {exc}")
+            LOGGER.exception("Could not list DNS records for %s", domain["root_domain"])
+            continue
+
         existing_by_name = {record["name"].lower(): record for record in dns_records if record.get("name")}
         existing_by_id = {record["id"]: record for record in dns_records if record.get("id")}
 
         for subdomain in domain_subdomains:
             fqdn = full_hostname(subdomain["name"], domain["root_domain"])
-            record = None
+            try:
+                record = None
 
-            if subdomain.get("record_id"):
-                record = existing_by_id.get(subdomain["record_id"])
+                if subdomain.get("record_id"):
+                    record = existing_by_id.get(subdomain["record_id"])
 
-            if record is None:
-                record = existing_by_name.get(fqdn.lower())
+                if record is None:
+                    record = existing_by_name.get(fqdn.lower())
 
-            if record is None:
-                payload = api_operations.create_dns_record(
-                    credentials,
-                    domain["zone_id"],
-                    fqdn,
-                    public_ip,
-                    bool(subdomain["proxied"]),
-                )
-                db.update_subdomain_record(subdomain["id"], payload["result"]["id"])
-                db.record_subdomain_ip(subdomain["id"], public_ip)
-                created += 1
-                continue
+                if record is None:
+                    payload = api_operations.create_dns_record(
+                        credentials,
+                        domain["zone_id"],
+                        fqdn,
+                        public_ip,
+                        bool(subdomain["proxied"]),
+                    )
+                    db.update_subdomain_record(subdomain["id"], payload["result"]["id"])
+                    db.record_subdomain_ip(subdomain["id"], public_ip)
+                    created += 1
+                    continue
 
-            if record.get("id") != subdomain.get("record_id"):
-                db.update_subdomain_record(subdomain["id"], record["id"])
-                adopted += 1
+                if record.get("id") != subdomain.get("record_id"):
+                    db.update_subdomain_record(subdomain["id"], record["id"])
+                    adopted += 1
 
-            if record.get("content") != public_ip or bool(record.get("proxied")) != bool(subdomain["proxied"]):
-                api_operations.update_record_by_id(
-                    credentials,
-                    domain["zone_id"],
-                    record["id"],
-                    fqdn,
-                    public_ip,
-                    bool(subdomain["proxied"]),
-                )
-                db.record_subdomain_ip(subdomain["id"], public_ip, record.get("content"))
-                updated += 1
-            else:
-                db.record_subdomain_ip(subdomain["id"], public_ip)
-                unchanged += 1
+                if record.get("content") != public_ip or bool(record.get("proxied")) != bool(subdomain["proxied"]):
+                    api_operations.update_record_by_id(
+                        credentials,
+                        domain["zone_id"],
+                        record["id"],
+                        fqdn,
+                        public_ip,
+                        bool(subdomain["proxied"]),
+                    )
+                    db.record_subdomain_ip(subdomain["id"], public_ip, record.get("content"))
+                    updated += 1
+                else:
+                    db.record_subdomain_ip(subdomain["id"], public_ip)
+                    unchanged += 1
+            except Exception as exc:
+                errors.append(f"{fqdn}: {exc}")
+                LOGGER.exception("Could not sync DNS record %s", fqdn)
 
     summary = (
         f"Public IP {public_ip}. "
-        f"Domains {len(domains)}, created {created}, updated {updated}, unchanged {unchanged}, adopted {adopted}."
+        f"Domains {len(domains)}, created {created}, updated {updated}, unchanged {unchanged}, adopted {adopted}, "
+        f"failed {len(errors)}."
     )
-    db.update_sync_status("ok", summary, "", public_ip)
-    return {"status": "ok", "summary": summary}
+    status = "error" if errors else "ok"
+    error_message = "\n".join(errors)
+    db.update_sync_status(status, summary, error_message, public_ip)
+    return {"status": status, "summary": summary, "errors": errors}
 
 
 class SyncWorker:

@@ -363,7 +363,7 @@ def create_app(sync_interval_seconds=300):
                 sync_result = sync_service.run_sync_cycle()
                 flash(
                     f"Added {added_count} subdomains. {sync_result['summary']}",
-                    "success",
+                    "success" if sync_result["status"] == "ok" else "error",
                 )
             except Exception as exc:
                 db.update_sync_status("error", "Sync failed after bulk subdomain add.", str(exc))
@@ -383,7 +383,7 @@ def create_app(sync_interval_seconds=300):
             fqdn = sync_service.full_hostname(normalized, domain["root_domain"])
             flash(
                 f"Added {fqdn}. {sync_result['summary']}",
-                "success",
+                "success" if sync_result["status"] == "ok" else "error",
             )
         except (ValueError, sqlite3.IntegrityError) as exc:
             flash(str(exc), "error")
@@ -414,7 +414,11 @@ def create_app(sync_interval_seconds=300):
     def sync_now():
         try:
             result = sync_service.run_sync_cycle()
-            flash(result["summary"], "success")
+            category = "success" if result["status"] == "ok" else "error"
+            message = result["summary"]
+            if result.get("errors"):
+                message = f"{message} {result['errors'][0]}"
+            flash(message, category)
         except Exception as exc:
             db.update_sync_status("error", "Manual sync failed.", str(exc))
             flash(f"Manual sync failed: {exc}", "error")
@@ -463,7 +467,7 @@ def create_app(sync_interval_seconds=300):
             sync_result = sync_service.run_sync_cycle()
             flash(
                 f"Import complete. Added {result['domains']} domains and {result['subdomains']} subdomains. {sync_result['summary']}",
-                "success",
+                "success" if sync_result["status"] == "ok" else "error",
             )
         except (ValueError, json.JSONDecodeError) as exc:
             flash(f"Import failed: {exc}", "error")
